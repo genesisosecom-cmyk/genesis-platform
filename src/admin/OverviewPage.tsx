@@ -39,7 +39,7 @@ function Overview({ data }: { data: Awaited<ReturnType<typeof loadOverview>> }) 
   return (
     <>
       <div className="kpis kpis--3">
-        <Kpi label="Usuarios del campus" value={members.length} hint={`${activeWeek} activos esta semana`} />
+        <Kpi label="Usuarios del campus" value={members.length} hint={`${activeWeek} activo${activeWeek === 1 ? "" : "s"} esta semana`} />
         <Kpi label="Avance promedio" value={`${avg}%`} />
         <Kpi label="Respuestas sin leer" value={unread.length} tone={unread.length ? 'warn' : undefined} hint={`${responses.length} en total`} />
         <Kpi label="Clientes activos" value={clients.filter((c) => c.status === 'activo').length} hint={`${clients.length} en total`} />
