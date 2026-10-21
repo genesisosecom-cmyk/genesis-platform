@@ -5,9 +5,9 @@ import { MODULES, TOOLS } from '../data/content';
 import { ArrowRight, Chart, Layers, Vault } from '../components/Icons';
 
 export default function HubPage() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const { overallPercent } = useProgress();
-  const firstName = user?.name.split(' ')[0];
+  const firstName = profile?.full_name.split(' ')[0] || 'de nuevo';
 
   const cards = [
     { to: '/avance', n: '01', title: 'Tu avance', text: `${overallPercent}% del programa completado`, Icon: Chart },
@@ -18,7 +18,7 @@ export default function HubPage() {
   return (
     <div className="fade-in">
       <header className="page__header page__header--center">
-        <span className="eyebrow">Bienvenido de nuevo</span>
+        <span className="eyebrow">Campus Genesis</span>
         <h1 className="page__title">Hola, {firstName}</h1>
         <p className="page__lead">¿Por dónde querés continuar hoy?</p>
       </header>

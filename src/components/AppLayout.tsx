@@ -9,7 +9,7 @@ export const SECTIONS = [
 ];
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
+  const { profile, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -27,9 +27,16 @@ export default function AppLayout() {
               {s.label}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink to="/admin" className="topbar__link topbar__link--admin">
+              Admin
+            </NavLink>
+          )}
         </nav>
         <div className="topbar__user">
-          <span className="avatar" title={user?.email}>{user?.name.charAt(0)}</span>
+          <span className="avatar" title={profile?.email}>
+            {(profile?.full_name || profile?.email || '?').charAt(0).toUpperCase()}
+          </span>
           <button className="icon-btn" onClick={handleLogout} aria-label="Cerrar sesión" title="Cerrar sesión">
             <Logout />
           </button>
