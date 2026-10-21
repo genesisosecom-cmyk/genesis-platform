@@ -1,28 +1,91 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import * as authService from './authService';
-import type { User } from './authService';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import type { Profile } from '../lib/types';
 
 interface AuthContextValue {
-  user: User | null;
+  /** true mientras se recupera la sesión inicial o el perfil. */
+  loading: boolean;
+  session: Session | null;
+  profile: Profile | null;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => authService.getSession());
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileFor, setProfileFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionReady(true);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const userId = session?.user.id ?? null;
+
+  useEffect(() => {
+    if (!userId) {
+      setProfile(null);
+      setProfileFor(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setProfile(data as Profile | null);
+        setProfileFor(userId);
+      });
+    supabase.rpc('touch_last_seen').then(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const login = useCallback(async (email: string, password: string) => {
-    setUser(await authService.login(email, password));
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw error;
   }, []);
 
   const logout = useCallback(async () => {
-    await authService.logout();
-    setUser(null);
+    await supabase.auth.signOut();
   }, []);
 
-  const value = useMemo(() => ({ user, login, logout }), [user, login, logout]);
+  const sendPasswordReset = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/actualizar-clave`,
+    });
+    if (error) throw error;
+  }, []);
+
+  const loading = !sessionReady || (userId !== null && profileFor !== userId);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      loading,
+      session,
+      profile,
+      isAdmin: profile?.role === 'superadmin' && profile.active,
+      login,
+      logout,
+      sendPasswordReset,
+    }),
+    [loading, session, profile, login, logout, sendPasswordReset],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
