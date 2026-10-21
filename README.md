@@ -24,7 +24,9 @@ Los clientes, usuarios y respuestas se vinculan por email automáticamente.
 
 ## Puesta en marcha
 
-1. **Base de datos:** ejecutá `supabase/migrations/20261021000000_init.sql` en el proyecto de Supabase (SQL Editor o `supabase db push`). Crea las tablas, las políticas RLS y dos formularios de ejemplo.
+Proyecto actual: `genesis-platform` (`zanwrwysbmvgytfzymaz`, São Paulo). Los pasos 1 y 2 ya están aplicados.
+
+1. **Base de datos:** ejecutá los archivos de `supabase/migrations/` en orden (SQL Editor o `supabase db push`). Crean las tablas, las políticas RLS y dos formularios de ejemplo.
 2. **Edge Function:** desplegá `supabase/functions/admin-users` (`supabase functions deploy admin-users`). Es la que permite al admin crear usuarios.
 3. **Auth:** en *Authentication → Sign In / Providers* desactivá *Allow new users to sign up*. En *URL Configuration* agregá la URL del sitio y `https://TU-DOMINIO/actualizar-clave` como redirect.
 4. **Primer superadmin:** creá el usuario en *Authentication → Users → Add user* y después ejecutá:
