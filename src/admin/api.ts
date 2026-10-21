@@ -23,16 +23,7 @@ export const fetchPayments = async (clientId?: string) => {
   return unwrap(await q) as Payment[];
 };
 
-/** Llama a la Edge Function `admin-users` (crear usuarios / cambiar clave). */
-export async function adminUsers(body: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke('admin-users', { body });
-  if (error) {
-    const ctx = (error as { context?: Response }).context;
-    const msg = ctx ? ((await ctx.json().catch(() => null)) as { error?: string } | null)?.error : null;
-    throw new Error(msg ?? error.message);
-  }
-  return data;
-}
+export { adminUsers } from '../lib/adminUsers';
 
 export type PaymentStatus = 'pagado' | 'vencido' | 'pendiente';
 

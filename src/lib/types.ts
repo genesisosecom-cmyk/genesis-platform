@@ -7,6 +7,8 @@ export interface Profile {
   role: Role;
   active: boolean;
   last_seen_at: string | null;
+  must_change_password: boolean;
+  temp_password_expires_at: string | null;
   created_at: string;
 }
 

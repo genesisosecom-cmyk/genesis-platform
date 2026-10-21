@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import FullScreenMessage from '../components/FullScreenMessage';
+import ChangeTempPasswordPage from '../pages/ChangeTempPasswordPage';
 
 export default function RequireAuth({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const { loading, session, profile, isAdmin, logout } = useAuth();
@@ -18,6 +19,7 @@ export default function RequireAuth({ children, admin = false }: { children: Rea
       />
     );
   }
+  if (profile.must_change_password) return <ChangeTempPasswordPage />;
   if (admin && !isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 }

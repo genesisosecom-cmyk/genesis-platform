@@ -574,3 +574,16 @@ input[type='date'].field { color-scheme: dark; }
   .q-editor__row { flex-wrap: wrap; }
   .toolbar__right { width: 100%; }
 }
+
+/* Contraseñas temporales */
+.login__lead { text-align: center; color: var(--text); }
+.login__timer { color: var(--accent); margin-bottom: 6px; }
+.creds { display: flex; flex-direction: column; gap: 16px; }
+.creds__box { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; padding: 16px 18px; border: 1px solid var(--accent-line); border-radius: 12px; background: var(--accent-soft); font-size: 14px; }
+.creds__box dt { color: var(--muted); }
+.creds__box dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+.creds__timer { font-size: 13px; color: var(--muted); }
+.creds__timer strong { color: var(--accent); font-weight: 500; }
+.btn--danger { color: #ff8a5c; border-color: rgba(255, 138, 92, 0.4); }
+.btn--danger:hover { background: rgba(255, 138, 92, 0.1); }
+.role-pick { display: flex; gap: 8px; }

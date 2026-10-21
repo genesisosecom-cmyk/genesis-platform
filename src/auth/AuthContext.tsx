@@ -9,6 +9,8 @@ interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   isAdmin: boolean;
+  /** Vuelve a leer el perfil (por ej. después de cambiar la contraseña temporal). */
+  refreshProfile: () => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -21,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileFor, setProfileFor] = useState<string | null>(null);
+  const [profileTick, setProfileTick] = useState(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -50,11 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(data as Profile | null);
         setProfileFor(userId);
       });
-    supabase.rpc('touch_last_seen').then(() => undefined);
     return () => {
       cancelled = true;
     };
+  }, [userId, profileTick]);
+
+  useEffect(() => {
+    if (userId) supabase.rpc('touch_last_seen').then(() => undefined);
   }, [userId]);
+
+  const refreshProfile = useCallback(() => setProfileTick((t) => t + 1), []);
 
   const login = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -79,12 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       session,
       profile,
-      isAdmin: profile?.role === 'superadmin' && profile.active,
+      isAdmin: profile?.role === 'superadmin' && profile.active && !profile.must_change_password,
+      refreshProfile,
       login,
       logout,
       sendPasswordReset,
     }),
-    [loading, session, profile, login, logout, sendPasswordReset],
+    [loading, session, profile, refreshProfile, login, logout, sendPasswordReset],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

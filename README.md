@@ -15,7 +15,7 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 
 **Panel de superadmin** — `/admin` (solo usuarios con rol `superadmin`)
 - **Resumen:** usuarios activos, avance promedio, respuestas sin leer, cobrado en el mes, cuotas vencidas y próximos cobros.
-- **Usuarios:** avance de cada alumno por módulo, última actividad, formularios respondidos, alta de usuarios, quitar acceso, cambiar contraseña y dar rol admin.
+- **Usuarios:** avance de cada alumno por módulo, última actividad y formularios respondidos. Alta de usuarios (miembro o admin) con contraseña temporal de 10 minutos y botón para copiar los datos de acceso; en el primer ingreso el usuario elige su contraseña. También se puede regenerar la contraseña temporal, quitar acceso, dar rol admin y eliminar usuarios.
 - **Respuestas:** bandeja de formularios con filtros, vista de cada respuesta, "marcar como leída" y notas internas para preparar la llamada.
 - **Formularios:** crear/editar formularios, copiar el link, pausar/activar.
 - **Clientes y pagos:** ficha de cada cliente (programa, estado, fechas, contacto), plan de cuotas generado automáticamente, registrar pagos, deuda vencida, próximos vencimientos, y su avance en el campus y sus formularios.
@@ -44,6 +44,8 @@ npm run build    # build de producción en dist/
 En Vercel, cargá `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` como variables de entorno. `vercel.json` ya tiene el rewrite para las rutas del SPA.
 
 ## Seguridad
+
+- Las contraseñas temporales vencen a los 10 minutos: una tarea de `pg_cron` las invalida cada minuto y cierra las sesiones abiertas con ellas. Mientras un admin no cambie su contraseña temporal, no tiene permisos de admin.
 
 - Todas las tablas tienen RLS: un miembro solo ve su perfil, su progreso y sus respuestas; clientes y pagos son solo para superadmin.
 - Los formularios activos son públicos para leer y responder; las respuestas solo las lee el superadmin (o el propio usuario si respondió logueado).
