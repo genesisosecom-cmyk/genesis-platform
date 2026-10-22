@@ -769,3 +769,13 @@ html { scrollbar-gutter: stable; }
 .dropzone { position: relative; display: flex; align-items: center; justify-content: center; min-height: 92px; padding: 18px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: center; font-size: 14px; cursor: pointer; transition: border-color 0.3s, background 0.3s; }
 .dropzone:hover, .dropzone.has-file { border-color: var(--accent-line); background: var(--accent-soft); }
 .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Finanzas */
+.fin-note { padding: 12px 16px; border: 1px solid rgba(255, 138, 92, 0.35); border-radius: 12px; color: #ffb08f; font-size: 13px; margin-bottom: 18px; }
+.fin-hint { font-size: 12px; margin-top: 10px; }
+.fin-cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.fin-cat { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; background: var(--glass); }
+.field--month { width: auto; padding: 8px 14px; border-radius: 999px; color-scheme: dark; }
+.table--num td:not(:first-child), .table--num th:not(:first-child) { text-align: right; }
+.commission-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.commission-add .field--select { flex: 1; min-width: 180px; border-radius: 10px; }
