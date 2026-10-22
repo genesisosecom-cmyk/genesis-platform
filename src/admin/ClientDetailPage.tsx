@@ -10,6 +10,7 @@ import { summarizeProgress } from '../progress/ProgressContext';
 import { fmtDate, fmtDateTime, fmtMoney, todayISO } from '../lib/format';
 import type { Client, FormResponse, LessonProgressRow, Payment, Profile } from '../lib/types';
 import { ArrowLeft } from '../components/Icons';
+import { discordVariants } from '../lib/discord';
 
 const escape = (v: string) => v.replace(/[\\%_]/g, '\\$&');
 
@@ -23,11 +24,13 @@ async function load(id: string) {
     profile = unwrap(await supabase.from('profiles').select('*').eq('id', client.profile_id).maybeSingle()) as Profile | null;
     progress = unwrap(await supabase.from('lesson_progress').select('*').eq('user_id', client.profile_id)) as LessonProgressRow[];
   }
-  if (client.email) {
-    responses = unwrap(
-      await supabase.from('form_responses').select('*').ilike('respondent_email', escape(client.email)).order('submitted_at', { ascending: false }),
-    ) as FormResponse[];
-  }
+  // Respuestas del cliente: coinciden por email o por canal de Discord.
+  const queries = [
+    ...(client.email ? [supabase.from('form_responses').select('*').ilike('respondent_email', escape(client.email))] : []),
+    ...discordVariants(client.discord_channel).map((v) => supabase.from('form_responses').select('*').ilike('discord_channel', v)),
+  ];
+  const found = (await Promise.all(queries)).flatMap((res) => unwrap(res) as FormResponse[]);
+  responses = [...new Map(found.map((r) => [r.id, r])).values()].sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
   return { client, payments, forms, profile, progress, responses };
 }
 

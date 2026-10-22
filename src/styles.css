@@ -493,7 +493,9 @@ input[type='date'].field { color-scheme: dark; }
 .pill--accent { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
 .pill--muted { color: var(--muted); }
 
-.toolbar__right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar__right { display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; margin-left: auto; }
+.toolbar__right .field--search { width: 220px; flex: 0 1 220px; }
+.toolbar__right .btn { white-space: nowrap; flex: none; }
 .state { display: grid; place-items: center; padding: 48px; }
 .state--error { color: #ff8a5c; }
 
@@ -573,6 +575,7 @@ input[type='date'].field { color-scheme: dark; }
   .aform, .form-grid { grid-template-columns: 1fr; }
   .q-editor__row { flex-wrap: wrap; }
   .toolbar__right { width: 100%; }
+  .toolbar__right .field--search { flex: 1 1 auto; width: auto; }
 }
 
 /* Contraseñas temporales */
@@ -738,3 +741,4 @@ html { scrollbar-gutter: stable; }
 .plan__warn { color: #ff8a5c; }
 .plan__hint { font-size: 12px; }
 .discord { color: #a5b0ff; }
+.table-wrap:focus-visible { outline: 1px solid var(--accent-line); outline-offset: 2px; }

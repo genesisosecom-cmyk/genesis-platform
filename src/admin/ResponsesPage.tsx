@@ -32,7 +32,7 @@ export default function ResponsesPage() {
         (period === 'all' || (period === 'upcoming' ? !r.call_date || r.call_date >= today : !!r.call_date && r.call_date < today)) &&
         (coach === 'all' || r.coach === coach) &&
         (formId === 'all' || r.form_id === formId) &&
-        (!q || `${r.respondent_name} ${r.respondent_email} ${r.program ?? ''} ${JSON.stringify(r.answers)}`.toLowerCase().includes(q)),
+        (!q || `${r.respondent_name} ${r.respondent_email} ${r.discord_channel ?? ''} ${r.program ?? ''} ${JSON.stringify(r.answers)}`.toLowerCase().includes(q)),
     )
     .sort((a, b) =>
       period === 'upcoming'
@@ -85,7 +85,7 @@ export default function ResponsesPage() {
                   <tr key={r.id} className="table__row" onClick={() => navigate(`/admin/respuestas/${r.id}`)}>
                     <td>
                       <div className="cell-main"><Link to={`/admin/respuestas/${r.id}`} onClick={(e) => e.stopPropagation()}>{r.respondent_name}</Link></div>
-                      <div className="cell-sub">{[r.program, r.respondent_email].filter(Boolean).join(' · ')}</div>
+                      <div className="cell-sub">{[r.program, r.discord_channel, r.respondent_email].filter(Boolean).join(' · ')}</div>
                     </td>
                     <td>{r.slot_label ?? forms.find((f) => f.id === r.form_id)?.title ?? '—'}</td>
                     <td>{r.call_date ? fmtDate(r.call_date) : r.call_kind === '1:1' ? 'A coordinar' : '—'}</td>

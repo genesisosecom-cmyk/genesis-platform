@@ -78,6 +78,7 @@ export interface FormResponse {
   user_id: string | null;
   respondent_name: string;
   respondent_email: string;
+  discord_channel: string | null;
   call_date: string | null;
   answers: Record<string, string | number | string[]>;
   program: string | null;
