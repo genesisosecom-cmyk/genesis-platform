@@ -11,11 +11,12 @@ import { fmtDate, fmtDateTime, relativeTime } from '../lib/format';
 import type { Profile } from '../lib/types';
 import { adminUsers, type TempCredentials } from '../lib/adminUsers';
 import { mmss, TEMP_PASSWORD_SECONDS, useCountdown } from '../lib/useCountdown';
-import { TOTAL_LESSONS } from '../data/content';
+import { useContent } from '../content/ContentContext';
 
 const load = () => Promise.all([fetchProfiles(), fetchAllProgress(), fetchResponses(), fetchClients(), fetchForms()]);
 
 export default function UsersPage() {
+  const { modules } = useContent();
   const { data, loading, error, reload } = useAsync(load, []);
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
@@ -27,7 +28,7 @@ export default function UsersPage() {
     .filter((p) => !q || `${p.full_name} ${p.email}`.toLowerCase().includes(q))
     .map((p) => ({
       profile: p,
-      summary: summarizeProgress(progress.filter((r) => r.user_id === p.id)),
+      summary: summarizeProgress(progress.filter((r) => r.user_id === p.id), modules),
       responses: responses.filter((r) => r.user_id === p.id || r.respondent_email.toLowerCase() === p.email.toLowerCase()),
       client: clients.find((c) => c.profile_id === p.id || (c.email && c.email.toLowerCase() === p.email.toLowerCase())),
     }));
@@ -64,7 +65,7 @@ export default function UsersPage() {
                     <span>{summary.overallPercent}%</span>
                     <ProgressBar percent={summary.overallPercent} />
                   </td>
-                  <td>{summary.completedCount}/{TOTAL_LESSONS}</td>
+                  <td>{summary.completedCount}/{summary.totalLessons}</td>
                   <td>{rs.length}</td>
                   <td>{relativeTime(p.last_seen_at)}</td>
                   <td><StatusPill profile={p} /></td>

@@ -11,6 +11,7 @@ import { fmtDate, fmtDateTime, fmtMoney, todayISO } from '../lib/format';
 import type { Client, FormResponse, LessonProgressRow, Payment, Profile } from '../lib/types';
 import { ArrowLeft } from '../components/Icons';
 import { discordVariants } from '../lib/discord';
+import { useContent } from '../content/ContentContext';
 
 const escape = (v: string) => v.replace(/[\\%_]/g, '\\$&');
 
@@ -38,6 +39,7 @@ export default function ClientDetailPage() {
   const { clientId = '' } = useParams();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(() => load(clientId), [clientId]);
+  const { modules } = useContent();
   const [editing, setEditing] = useState(false);
   const [paymentModal, setPaymentModal] = useState<Payment | 'new' | null>(null);
   const [paying, setPaying] = useState<Payment | null>(null);
@@ -66,7 +68,7 @@ export default function ClientDetailPage() {
         {data && (() => {
           const { client: c, payments, profile, progress, responses, forms } = data;
           const b = clientBalance(c, payments);
-          const summary = profile ? summarizeProgress(progress) : null;
+          const summary = profile ? summarizeProgress(progress, modules) : null;
           const today = todayISO();
           return (
             <>

@@ -1,18 +1,20 @@
 import { Link } from 'react-router-dom';
 import { useProgress } from '../progress/ProgressContext';
-import { MODULES, TOTAL_LESSONS, findModule, formatMinutes } from '../data/content';
+import { formatMinutes } from '../data/content';
+import { useContent } from '../content/ContentContext';
 import ProgressRing from '../components/ProgressRing';
 import ProgressBar from '../components/ProgressBar';
 import { ArrowRight, Play } from '../components/Icons';
 
 export default function ProgressPage() {
   const { overallPercent, completedCount, lastWatched, moduleProgress, isCompleted } = useProgress();
+  const { modules: MODULES, totalLessons: TOTAL_LESSONS, findModule } = useContent();
 
   const minutesDone = MODULES.reduce(
     (sum, m) => sum + m.lessons.filter((l) => isCompleted(m.id, l.id)).reduce((s, l) => s + l.duration, 0),
     0,
   );
-  const modulesDone = MODULES.filter((m) => moduleProgress(m).percent === 100).length;
+  const modulesDone = MODULES.filter((m) => m.lessons.length > 0 && moduleProgress(m).percent === 100).length;
 
   // Siguiente lección: la última vista o la primera sin completar.
   const resume = (() => {

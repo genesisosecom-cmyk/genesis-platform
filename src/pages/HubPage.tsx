@@ -1,18 +1,19 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useProgress } from '../progress/ProgressContext';
-import { MODULES, TOOLS } from '../data/content';
+import { useContent } from '../content/ContentContext';
 import { ArrowRight, Chart, Layers, Vault } from '../components/Icons';
 
 export default function HubPage() {
   const { profile } = useAuth();
   const { overallPercent } = useProgress();
+  const { modules, tools } = useContent();
   const firstName = profile?.full_name.split(' ')[0] || 'de nuevo';
 
   const cards = [
     { to: '/avance', n: '01', title: 'Tu avance', text: `${overallPercent}% del programa completado`, Icon: Chart },
-    { to: '/modulos', n: '02', title: 'Módulos', text: `${MODULES.length} módulos de contenido grabado`, Icon: Layers },
-    { to: '/herramientas', n: '03', title: 'Baúl de herramientas', text: `${TOOLS.length} plantillas y recursos`, Icon: Vault },
+    { to: '/modulos', n: '02', title: 'Módulos', text: `${modules.length} ${modules.length === 1 ? 'módulo' : 'módulos'} de contenido grabado`, Icon: Layers },
+    { to: '/herramientas', n: '03', title: 'Baúl de herramientas', text: `${tools.length} ${tools.length === 1 ? 'herramienta' : 'plantillas y recursos'}`, Icon: Vault },
   ];
 
   return (

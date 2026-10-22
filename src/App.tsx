@@ -19,6 +19,8 @@ import FormsPage from './admin/FormsPage';
 import ClientsPage from './admin/ClientsPage';
 import ClientDetailPage from './admin/ClientDetailPage';
 import AgendaPage from './admin/AgendaPage';
+import ContentAdminPage from './admin/ContentAdminPage';
+import ToolsAdminPage from './admin/ToolsAdminPage';
 import FullScreenMessage from './components/FullScreenMessage';
 import { isSupabaseConfigured } from './lib/supabase';
 
@@ -69,6 +71,8 @@ export default function App() {
             <Route path="respuestas/:responseId" element={<ResponseDetailPage />} />
             <Route path="formularios" element={<FormsPage />} />
             <Route path="agenda" element={<AgendaPage />} />
+            <Route path="contenido" element={<ContentAdminPage />} />
+            <Route path="herramientas" element={<ToolsAdminPage />} />
             <Route path="clientes" element={<ClientsPage />} />
             <Route path="clientes/:clientId" element={<ClientDetailPage />} />
           </Route>

@@ -16,6 +16,8 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - No hace falta cuenta para responder.
 
 **Panel de superadmin** — `/admin` (solo usuarios con rol `superadmin`)
+- **Contenido:** crear, ordenar, publicar/ocultar y eliminar módulos y lecciones. Cada lección lleva el link del video (YouTube no listado, Vimeo, Loom, Bunny o .mp4), duración y descripción, con vista previa.
+- **Herramientas:** baúl de herramientas con archivos subidos (bucket privado `toolbox`, hasta 50 MB) o links externos; borrador/publicada y orden.
 - **Resumen:** usuarios activos, avance promedio, respuestas sin leer, cobrado en el mes, cuotas vencidas y próximos cobros.
 - **Usuarios:** avance de cada alumno por módulo, última actividad y formularios respondidos. Alta de usuarios (miembro o admin) con contraseña temporal de 10 minutos y botón para copiar los datos de acceso; en el primer ingreso el usuario elige su contraseña. También se puede regenerar la contraseña temporal, quitar acceso, dar rol admin y eliminar usuarios.
 - **Respuestas:** bandeja filtrable por próximas clases, coach y estado; vista de cada respuesta con sus preguntas, "marcar como leída", notas internas y eliminar.
@@ -58,7 +60,7 @@ En Vercel, cargá `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` como variables 
 
 | Qué | Dónde |
 | --- | --- |
-| Módulos, lecciones y videos (`videoUrl`) | `src/data/content.ts` → `MODULES` |
-| Herramientas del baúl | `src/data/content.ts` → `TOOLS` |
+| Módulos, lecciones y videos | Panel → Contenido (tablas `modules` y `lessons`) |
+| Herramientas del baúl | Panel → Herramientas (tabla `tools` + bucket `toolbox`) |
 | Link de "Solicitar acceso" | `src/config.ts` |
 | Colores y estilos | `src/styles.css` (variables en `:root`) |

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAsync } from '../lib/useAsync';
 import { fetchAllProgress, fetchClients, fetchForms, fetchPayments, fetchProfiles, fetchResponses, paymentStatus } from './api';
 import { summarizeProgress } from '../progress/ProgressContext';
+import { useContent } from '../content/ContentContext';
 import { Kpi, Pill, State } from './ui';
 import { fmtDate, fmtDateTime, fmtMoney, todayISO } from '../lib/format';
 
@@ -20,9 +21,10 @@ export default function OverviewPage() {
 
 function Overview({ data }: { data: Awaited<ReturnType<typeof loadOverview>> }) {
   const [profiles, progress, responses, forms, clients, payments] = data;
+  const { modules } = useContent();
   const members = profiles.filter((p) => p.role === 'member');
   const avg = members.length
-    ? Math.round(members.reduce((s, m) => s + summarizeProgress(progress.filter((r) => r.user_id === m.id)).overallPercent, 0) / members.length)
+    ? Math.round(members.reduce((s, m) => s + summarizeProgress(progress.filter((r) => r.user_id === m.id), modules).overallPercent, 0) / members.length)
     : 0;
   const weekAgo = Date.now() - 7 * 86400000;
   const activeWeek = members.filter((m) => m.last_seen_at && new Date(m.last_seen_at).getTime() > weekAgo).length;
