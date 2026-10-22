@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
-import { addMonthsISO, todayISO } from '../lib/format';
+import { addMonthsISO, fmtMoney, todayISO } from '../lib/format';
 import type { Client, ClientStatus } from '../lib/types';
 import { Field, Modal } from './ui';
 import { PROGRAMS } from '../data/schedule';
@@ -12,17 +12,19 @@ export const STATUS_LABELS: Record<ClientStatus, string> = {
   baja: 'Baja',
 };
 
-/** Divide el total en cuotas mensuales iguales (la última absorbe el redondeo). */
-export function buildSchedule(clientId: string, total: number, count: number, start: string, currency: string) {
+/** Divide el total en `count` partes iguales (la última absorbe el redondeo). */
+export function splitEqually(total: number, count: number) {
   const base = Math.floor((total / count) * 100) / 100;
-  return Array.from({ length: count }, (_, i) => ({
-    client_id: clientId,
-    installment_number: i + 1,
-    amount: i === count - 1 ? Math.round((total - base * (count - 1)) * 100) / 100 : base,
-    currency,
-    due_date: addMonthsISO(start, i),
-  }));
+  return Array.from({ length: count }, (_, i) => (i === count - 1 ? Math.round((total - base * (count - 1)) * 100) / 100 : base));
 }
+
+interface PlanRow {
+  amount: string;
+  due: string;
+}
+
+const equalPlan = (total: number, count: number, firstDue: string): PlanRow[] =>
+  splitEqually(total, count).map((a, i) => ({ amount: total ? String(a) : '', due: addMonthsISO(firstDue, i) }));
 
 export default function ClientFormModal({ client, onClose, onSaved }: { client: Client | null; onClose: () => void; onSaved: (id: string) => void }) {
   const [v, setV] = useState({
@@ -37,19 +39,55 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
     total_amount: client ? String(client.total_amount) : '',
     currency: client?.currency ?? 'USD',
     installments_count: client ? String(client.installments_count) : '1',
+    discord_channel: client?.discord_channel ?? '',
     notes: client?.notes ?? '',
   });
   const [generate, setGenerate] = useState(!client);
   const [firstDue, setFirstDue] = useState(todayISO());
+  // Plan de cuotas editable: se reparte en partes iguales hasta que el admin toca un monto o fecha.
+  const [plan, setPlan] = useState<PlanRow[]>([]);
+  const [planTouched, setPlanTouched] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((s) => ({ ...s, [k]: e.target.value }));
 
+  const total = Number(v.total_amount || 0);
+  const count = Math.max(1, Math.min(60, Number(v.installments_count || 1)));
+
+  useEffect(() => {
+    if (!planTouched) setPlan(equalPlan(total, count, firstDue));
+  }, [total, count, firstDue, planTouched]);
+
+  // Si ya se editaron montos y cambia la cantidad de cuotas, se agregan o quitan al final.
+  useEffect(() => {
+    if (!planTouched) return;
+    setPlan((rows) =>
+      rows.length === count
+        ? rows
+        : rows.length > count
+          ? rows.slice(0, count)
+          : [...rows, ...Array.from({ length: count - rows.length }, (_, i) => ({ amount: '', due: addMonthsISO(firstDue, rows.length + i) }))],
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count]);
+
+  const editRow = (i: number, patch: Partial<PlanRow>) => {
+    setPlanTouched(true);
+    setPlan((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  };
+  const resetPlan = () => {
+    setPlanTouched(false);
+    setPlan(equalPlan(total, count, firstDue));
+  };
+  const planSum = Math.round(plan.reduce((acc, r) => acc + Number(r.amount || 0), 0) * 100) / 100;
+  const currency = v.currency.toUpperCase() || 'USD';
+  // Sin monto total y sin tocar el plan, no se crean cuotas (se pueden cargar después).
+  const wantsPlan = generate && (total > 0 || planTouched);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!v.full_name.trim()) return setError('El nombre es obligatorio');
-    const total = Number(v.total_amount || 0);
-    const count = Math.max(1, Number(v.installments_count || 1));
+    if (wantsPlan && plan.some((r) => !(Number(r.amount) > 0) || !r.due)) return setError('Cada cuota necesita un monto mayor a 0 y una fecha');
     setSaving(true);
     const payload = {
       ...v,
@@ -61,6 +99,7 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
       start_date: v.start_date || null,
       end_date: v.end_date || null,
       notes: v.notes || null,
+      discord_channel: v.discord_channel.trim() || null,
       total_amount: total,
       installments_count: count,
       currency: v.currency.toUpperCase(),
@@ -73,8 +112,19 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
       return setError(res.error.message);
     }
     const id = (res.data as { id: string }).id;
-    if (generate && total > 0) {
-      const { error: err } = await supabase.from('payments').insert(buildSchedule(id, total, count, firstDue, payload.currency));
+    if (wantsPlan && plan.length) {
+      // Al editar un cliente, las cuotas nuevas siguen la numeración de las existentes.
+      const { count: existing } = client
+        ? await supabase.from('payments').select('id', { count: 'exact', head: true }).eq('client_id', id)
+        : { count: 0 };
+      const rows = plan.map((r, i) => ({
+        client_id: id,
+        installment_number: (existing ?? 0) + i + 1,
+        amount: Number(r.amount),
+        currency: payload.currency,
+        due_date: r.due,
+      }));
+      const { error: err } = await supabase.from('payments').insert(rows);
       if (err) {
         setSaving(false);
         return setError(`Cliente guardado, pero no se pudieron crear las cuotas: ${err.message}`);
@@ -95,6 +145,7 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
         <Field label="Email"><input className="field" type="email" value={v.email} onChange={set('email')} /></Field>
         <Field label="Teléfono / WhatsApp"><input className="field" value={v.phone} onChange={set('phone')} /></Field>
         <Field label="Empresa"><input className="field" value={v.company} onChange={set('company')} /></Field>
+        <Field label="Canal de Discord"><input className="field" value={v.discord_channel} onChange={set('discord_channel')} placeholder="#nombre-del-canal" /></Field>
         <Field label="Programa">
           <input className="field" list="programs" value={v.program} onChange={set('program')} placeholder="Genesis OG, Fast Subscription, Genesis OS…" />
           <datalist id="programs">{PROGRAMS.map((p) => <option key={p} value={p} />)}</datalist>
@@ -114,13 +165,40 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
         <div className="afield--full gen-box">
           <label className="check">
             <input type="checkbox" checked={generate} onChange={(e) => setGenerate(e.target.checked)} />
-            {client ? 'Agregar plan de cuotas mensuales' : 'Generar plan de cuotas mensuales'}
+            {client ? 'Agregar plan de cuotas' : 'Generar plan de cuotas'}
           </label>
           {generate && (
-            <label className="afield">
-              <span className="afield__label">Primer vencimiento</span>
-              <input className="field" type="date" value={firstDue} onChange={(e) => setFirstDue(e.target.value)} />
-            </label>
+            <>
+              <label className="afield">
+                <span className="afield__label">Primer vencimiento</span>
+                <input className="field" type="date" value={firstDue} onChange={(e) => setFirstDue(e.target.value)} />
+              </label>
+              <div className="plan">
+                <div className="plan__head">
+                  <span>Cuota</span>
+                  <span>Monto ({currency})</span>
+                  <span>Vencimiento</span>
+                </div>
+                {plan.map((r, i) => (
+                  <div key={i} className="plan__row">
+                    <span className="plan__n">{i + 1}</span>
+                    <input className="field" type="number" min="0" step="0.01" value={r.amount} onChange={(e) => editRow(i, { amount: e.target.value })} aria-label={`Monto cuota ${i + 1}`} />
+                    <input className="field" type="date" value={r.due} onChange={(e) => editRow(i, { due: e.target.value })} aria-label={`Vencimiento cuota ${i + 1}`} />
+                  </div>
+                ))}
+                <div className="plan__foot">
+                  <span className={total && planSum !== total ? 'plan__warn' : 'muted'}>
+                    Suma de cuotas: {fmtMoney(planSum, currency)}
+                    {total ? ` de ${fmtMoney(total, currency)}` : ''}
+                    {total && planSum !== total ? ` · diferencia ${fmtMoney(total - planSum, currency)}` : ''}
+                  </span>
+                  {planTouched && (
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={resetPlan}>Repartir en partes iguales</button>
+                  )}
+                </div>
+                <p className="muted plan__hint">Podés editar el monto y la fecha de cada cuota. La cantidad sale de "Cantidad de cuotas".</p>
+              </div>
+            </>
           )}
         </div>
 

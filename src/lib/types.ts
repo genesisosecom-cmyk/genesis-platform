@@ -105,6 +105,7 @@ export interface Client {
   currency: string;
   installments_count: number;
   notes: string | null;
+  discord_channel: string | null;
   profile_id: string | null;
   created_at: string;
 }
