@@ -36,6 +36,7 @@ export default function PublicFormPage() {
   const [stage, setStage] = useState<number | 'intro' | 'done'>('intro');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [discord, setDiscord] = useState('');
   const [program, setProgram] = useState('');
   const [slotId, setSlotId] = useState('');
   const [date, setDate] = useState('');
@@ -66,6 +67,9 @@ export default function PublicFormPage() {
       setEmail((e) => e || profile.email);
     }
   }, [profile]);
+
+  // El aviso de error se borra en cuanto el alumno corrige algo.
+  useEffect(() => setError(''), [name, email, discord, program, slotId, date, otherDate, questions, answers]);
 
   const steps = useMemo<Step[]>(() => {
     if (!form) return [];
@@ -98,6 +102,7 @@ export default function PublicFormPage() {
       case 'who':
         if (!name.trim()) return 'Escribí tu nombre';
         if (!/^\S+@\S+\.\S+$/.test(email.trim())) return 'Revisá tu mail';
+        if (form?.kind === 'pre_clase' && !discord.trim()) return 'Escribí el nombre de tu canal de Discord';
         return '';
       case 'program':
         return program ? '' : 'Elegí tu programa';
@@ -136,6 +141,7 @@ export default function PublicFormPage() {
       user_id: session?.user.id ?? null,
       respondent_name: name.trim(),
       respondent_email: email.trim().toLowerCase(),
+      discord_channel: discord.trim() || null,
       ...payload,
     });
     setSending(false);
@@ -290,6 +296,16 @@ export default function PublicFormPage() {
             <Heading>¿Quién sos?</Heading>
             <TextField label="Tu nombre" required value={name} onChange={setName} placeholder="Nombre y apellido" autoFocus autoComplete="name" />
             <TextField label="Tu mail" required type="email" value={email} onChange={setEmail} placeholder="nombre@mail.com" autoComplete="email" />
+            {form.kind === 'pre_clase' && (
+              <TextField
+                label="El nombre de tu canal de Discord"
+                required
+                help="Copialo tal cual aparece en Discord, así te identificamos."
+                value={discord}
+                onChange={setDiscord}
+                placeholder="#nombre-de-tu-canal"
+              />
+            )}
           </>
         )}
 

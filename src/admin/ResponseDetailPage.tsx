@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, unwrap } from '../lib/supabase';
+import { discordVariants } from '../lib/discord';
 import { useAsync } from '../lib/useAsync';
 import { Pill, State } from './ui';
 import { fmtDate, fmtDateTime } from '../lib/format';
@@ -10,11 +11,20 @@ import { ArrowLeft, Check } from '../components/Icons';
 /** Escapa comodines de ILIKE para comparar emails de forma exacta sin distinguir mayúsculas. */
 const exact = (v: string) => v.replace(/[\\%_]/g, '\\$&');
 
+/** Cliente de la respuesta: primero por email, si no por canal de Discord. */
+async function findClient(r: FormResponse) {
+  const byEmail = unwrap(await supabase.from('clients').select('*').ilike('email', exact(r.respondent_email))) as Client[];
+  if (byEmail.length || !r.discord_channel) return byEmail;
+  const variants = discordVariants(r.discord_channel);
+  const byDiscord = await Promise.all(variants.map((v) => supabase.from('clients').select('*').ilike('discord_channel', v)));
+  return byDiscord.flatMap((res) => (unwrap(res) as Client[]) ?? []);
+}
+
 async function load(id: string) {
   const response = unwrap(await supabase.from('form_responses').select('*').eq('id', id).single()) as FormResponse;
   const [form, clients, history] = await Promise.all([
     supabase.from('forms').select('*').eq('id', response.form_id).single().then((r) => unwrap(r) as Form),
-    supabase.from('clients').select('*').ilike('email', exact(response.respondent_email)).then((r) => unwrap(r) as Client[]),
+    findClient(response),
     supabase
       .from('form_responses')
       .select('id, form_id, submitted_at, call_date')
@@ -60,6 +70,7 @@ export default function ResponseDetailPage() {
               <div className="detail-meta">
                 {data.response.program && <Pill tone="accent">{data.response.program}</Pill>}
                 <span>{data.response.respondent_email}</span>
+                {data.response.discord_channel && <span className="discord">Discord: {data.response.discord_channel}</span>}
                 <span>Clase: {data.response.call_date ? fmtDate(data.response.call_date) : data.response.call_kind === '1:1' ? 'a coordinar' : '—'}</span>
                 <span>Enviado: {fmtDateTime(data.response.submitted_at)}</span>
               </div>
