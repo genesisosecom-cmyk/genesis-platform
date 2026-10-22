@@ -118,7 +118,7 @@ function Finance({ data, mode, month, year, current, reload }: { data: FinanceDa
       {msg && <p className="login__error">{msg}</p>}
 
       <div className="kpis kpis--4">
-        <Kpi label="Facturación" value={usd(period.billing)} hint="Contratos nuevos del período" />
+        <Kpi label="Facturación" value={usd(period.billing)} hint="Contratos vendidos (mes del primer pago)" />
         <Kpi label="Cash collected" value={usd(period.cash)} tone="ok" hint="Cuotas cobradas" />
         <Kpi label="Gastos" value={usd(period.expenses)} />
         <Kpi label="Equipo" value={usd(period.commissions + period.fixed)} hint={`Comisiones ${usd(period.commissions)} · Fijos ${usd(period.fixed)}`} />

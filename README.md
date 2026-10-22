@@ -23,7 +23,7 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - **Respuestas:** bandeja filtrable por próximas clases, coach y estado; vista de cada respuesta con sus preguntas, "marcar como leída", notas internas y eliminar.
 - **Formularios:** crear/editar formularios y los textos de la pantalla de inicio, copiar el link, pausar/activar.
 - **Agenda:** clases grupales semanales y 1:1 a pedido, con qué programas acceden a cada una.
-- **Finanzas:** por mes, año o todo: facturación (contratos nuevos), cash collected, gastos (únicos o mensuales recurrentes), comisiones y fijos del equipo, resultado neto, reparto a socios y lo que queda en la empresa. Cuánto le corresponde a cada miembro, pagos registrados y saldo pendiente. Las comisiones se asignan por cliente (% sobre lo cobrado). Todo en USD.
+- **Finanzas:** por mes, año o todo: facturación (contrato completo en el mes del primer pago del cliente), cash collected, gastos (únicos o mensuales recurrentes), comisiones y fijos del equipo, resultado neto, reparto a socios y lo que queda en la empresa. Cuánto le corresponde a cada miembro, pagos registrados y saldo pendiente. Las comisiones se asignan por cliente (% sobre lo cobrado). Todo en USD.
 - **Clientes y pagos:** ficha de cada cliente (programa, estado, fechas, contacto), plan de cuotas generado automáticamente, registrar pagos, deuda vencida, próximos vencimientos, y su avance en el campus y sus formularios.
 
 Los clientes, usuarios y respuestas se vinculan por email automáticamente.
