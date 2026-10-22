@@ -113,6 +113,15 @@ export function monthRange(from: string, to: string) {
   return out;
 }
 
+/** Mes de venta de un cliente: el de su primer pago cobrado (null si todavía no pagó). */
+export function saleMonth(clientId: string, payments: Payment[]) {
+  const first = payments
+    .filter((p) => p.client_id === clientId && p.paid_at)
+    .map((p) => p.paid_at!)
+    .sort()[0];
+  return first ? monthOf(first) : null;
+}
+
 const inMonth = (month: string, start: string | null | undefined, end: string | null | undefined) =>
   (!start || monthOf(start) <= month) && (!end || month <= monthOf(end));
 
@@ -120,8 +129,10 @@ export function computeMonth(month: string, d: FinanceData): MonthResult {
   const byMember: Record<string, MemberEarnings> = {};
   const member = (id: string) => (byMember[id] ??= { commissions: 0, fixed: 0, profitShare: 0, total: 0 });
 
+  // Facturación: el contrato completo cuenta en el mes de la venta, que es el mes del primer pago
+  // del cliente (no importa cuándo arranca el programa).
   const billing = d.clients
-    .filter((c) => isBase(c.currency) && c.start_date && monthOf(c.start_date) === month)
+    .filter((c) => isBase(c.currency) && saleMonth(c.id, d.payments) === month)
     .reduce((s, c) => s + Number(c.total_amount), 0);
 
   const paid = d.payments.filter((p) => isBase(p.currency) && p.paid_at && monthOf(p.paid_at) === month);
@@ -211,7 +222,6 @@ export function firstMonth(d: FinanceData, fallback: string) {
     ...d.payments.map((p) => p.paid_at),
     ...d.expenses.map((e) => e.date),
     ...d.team.map((t) => t.start_date),
-    ...d.clients.map((c) => c.start_date),
   ].filter(Boolean) as string[];
   return dates.length ? monthOf(dates.sort()[0]) : fallback;
 }
