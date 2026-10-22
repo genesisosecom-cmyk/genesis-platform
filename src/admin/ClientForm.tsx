@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { addMonthsISO, todayISO } from '../lib/format';
 import type { Client, ClientStatus } from '../lib/types';
 import { Field, Modal } from './ui';
+import { PROGRAMS } from '../data/schedule';
 
 export const STATUS_LABELS: Record<ClientStatus, string> = {
   activo: 'Activo',
@@ -94,7 +95,10 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
         <Field label="Email"><input className="field" type="email" value={v.email} onChange={set('email')} /></Field>
         <Field label="Teléfono / WhatsApp"><input className="field" value={v.phone} onChange={set('phone')} /></Field>
         <Field label="Empresa"><input className="field" value={v.company} onChange={set('company')} /></Field>
-        <Field label="Programa / servicio"><input className="field" value={v.program} onChange={set('program')} placeholder="Ej: Mentoría 1:1 · 6 meses" /></Field>
+        <Field label="Programa">
+          <input className="field" list="programs" value={v.program} onChange={set('program')} placeholder="Genesis OG, Fast Subscription, Genesis OS…" />
+          <datalist id="programs">{PROGRAMS.map((p) => <option key={p} value={p} />)}</datalist>
+        </Field>
         <Field label="Estado">
           <select className="field field--select" value={v.status} onChange={set('status')}>
             {Object.entries(STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}

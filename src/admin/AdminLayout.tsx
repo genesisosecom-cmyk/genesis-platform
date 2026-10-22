@@ -5,6 +5,7 @@ const TABS = [
   { to: '/admin/usuarios', label: 'Usuarios' },
   { to: '/admin/respuestas', label: 'Respuestas' },
   { to: '/admin/formularios', label: 'Formularios' },
+  { to: '/admin/agenda', label: 'Agenda' },
   { to: '/admin/clientes', label: 'Clientes y pagos' },
 ];
 

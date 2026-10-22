@@ -1,5 +1,5 @@
 import { supabase, unwrap } from '../lib/supabase';
-import type { Client, Form, FormResponse, LessonProgressRow, Payment, Profile } from '../lib/types';
+import type { ClassSlot, Client, Form, FormResponse, LessonProgressRow, Payment, Profile } from '../lib/types';
 import { todayISO } from '../lib/format';
 
 export const fetchProfiles = async () =>
@@ -13,6 +13,9 @@ export const fetchForms = async () =>
 
 export const fetchResponses = async () =>
   unwrap(await supabase.from('form_responses').select('*').order('submitted_at', { ascending: false })) as FormResponse[];
+
+export const fetchSlots = async () =>
+  unwrap(await supabase.from('class_slots').select('*')) as ClassSlot[];
 
 export const fetchClients = async () =>
   unwrap(await supabase.from('clients').select('*').order('created_at', { ascending: false })) as Client[];

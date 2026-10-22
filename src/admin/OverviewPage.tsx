@@ -60,9 +60,9 @@ function Overview({ data }: { data: Awaited<ReturnType<typeof loadOverview>> }) 
                 <Link to={`/admin/respuestas/${r.id}`} className="mini-list__item">
                   <span>
                     <strong>{r.respondent_name}</strong>
-                    <span className="muted"> · {formTitle(r.form_id)}</span>
+                    <span className="muted"> · {r.slot_label ?? formTitle(r.form_id)}</span>
                   </span>
-                  <span className="muted">{r.call_date ? `Llamada ${fmtDate(r.call_date)}` : fmtDateTime(r.submitted_at)}</span>
+                  <span className="muted">{r.call_date ? `Clase ${fmtDate(r.call_date)}` : fmtDateTime(r.submitted_at)}</span>
                 </Link>
               </li>
             ))}

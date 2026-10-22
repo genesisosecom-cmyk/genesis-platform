@@ -4,7 +4,7 @@ import { useAsync } from '../lib/useAsync';
 import { supabase } from '../lib/supabase';
 import { fetchForms, fetchResponses } from './api';
 import { Field, Modal, Pill, State } from './ui';
-import type { CallType, Form, Question, QuestionType } from '../lib/types';
+import type { CallType, Form, FormKind, FormSettings, Question, QuestionType } from '../lib/types';
 import { External } from '../components/Icons';
 
 const load = () => Promise.all([fetchForms(), fetchResponses()]);
@@ -41,11 +41,11 @@ export default function FormsPage() {
             return (
               <div key={f.id} className="glass tool-card">
                 <div className="tool-card__top">
-                  <Pill tone="muted">Llamada {f.call_type}</Pill>
+                  <Pill tone="muted">{f.kind === 'pre_clase' ? 'Pre-clase · agenda' : `Llamada ${f.call_type}`}</Pill>
                   {f.is_active ? <Pill tone="ok">Activo</Pill> : <Pill tone="muted">Pausado</Pill>}
                 </div>
                 <h2 className="tool-card__title">{f.title}</h2>
-                <p className="muted">{f.questions.length} preguntas · {rs.length} respuestas{unread ? ` · ${unread} sin leer` : ''}</p>
+                <p className="muted">{f.kind === 'pre_clase' ? 'Programa, clase y preguntas' : `${f.questions.length} preguntas`} · {rs.length} respuestas{unread ? ` · ${unread} sin leer` : ''}</p>
                 <code className="link-box">/f/{f.slug}</code>
                 <div className="card-actions">
                   <button className="btn btn--ghost btn--sm" onClick={() => copy(f.slug)}>{copied === f.slug ? '¡Copiado!' : 'Copiar link'}</button>
@@ -86,6 +86,10 @@ function FormEditor({ form, onClose, onSaved }: { form: Form | null; onClose: ()
   const [description, setDescription] = useState(form?.description ?? '');
   const [callType, setCallType] = useState<CallType>(form?.call_type ?? '1:1');
   const [questions, setQuestions] = useState<Question[]>(form?.questions ?? []);
+  const [kind, setKind] = useState<FormKind>(form?.kind ?? 'custom');
+  const [settings, setSettings] = useState<FormSettings>(form?.settings ?? {});
+  const setS = (k: keyof FormSettings) => (e: { target: { value: string } }) =>
+    setSettings((st) => ({ ...st, [k]: k === 'bullets' ? e.target.value.split('\n') : e.target.value }));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -105,10 +109,24 @@ function FormEditor({ form, onClose, onSaved }: { form: Form | null; onClose: ()
     e.preventDefault();
     const finalSlug = slugify(slug || title);
     if (!title.trim() || !finalSlug) return setError('El formulario necesita un título');
+    if (kind === 'custom' && !questions.length) return setError('Agregá al menos una pregunta');
     if (questions.some((q) => !q.label.trim())) return setError('Todas las preguntas necesitan un texto');
     if (questions.some((q) => q.type === 'select' && !(q.options ?? []).length)) return setError('Las preguntas de opción única necesitan opciones');
     setSaving(true);
-    const payload = { title: title.trim(), slug: finalSlug, description: description.trim() || null, call_type: callType, questions };
+    const cleanSettings: FormSettings = Object.fromEntries(
+      Object.entries({ ...settings, bullets: (settings.bullets ?? []).map((b) => b.trim()).filter(Boolean) }).filter(([, v]) =>
+        Array.isArray(v) ? v.length : typeof v === 'string' ? v.trim() : v,
+      ),
+    );
+    const payload = {
+      title: title.trim(),
+      slug: finalSlug,
+      description: description.trim() || null,
+      call_type: callType,
+      kind,
+      settings: cleanSettings,
+      questions: kind === 'pre_clase' ? [] : questions,
+    };
     const { error: err } = form
       ? await supabase.from('forms').update(payload).eq('id', form.id)
       : await supabase.from('forms').insert(payload);
@@ -122,16 +140,42 @@ function FormEditor({ form, onClose, onSaved }: { form: Form | null; onClose: ()
       <form className="aform" onSubmit={submit}>
         <Field label="Título"><input className="field" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
         <Field label="Link (/f/…)"><input className="field" value={slug} placeholder={slugify(title)} onChange={(e) => setSlug(e.target.value)} /></Field>
-        <Field label="Tipo de llamada">
-          <select className="field field--select" value={callType} onChange={(e) => setCallType(e.target.value as CallType)}>
-            <option value="1:1">1:1</option>
-            <option value="grupal">Grupal</option>
-          </select>
-        </Field>
+        {!form && (
+          <Field label="Tipo de formulario" full>
+            <div className="role-pick">
+              <button type="button" className={`chip${kind === 'pre_clase' ? ' is-active' : ''}`} onClick={() => setKind('pre_clase')}>Pre-clase (programa + agenda + preguntas)</button>
+              <button type="button" className={`chip${kind === 'custom' ? ' is-active' : ''}`} onClick={() => setKind('custom')}>Personalizado</button>
+            </div>
+          </Field>
+        )}
+        {kind === 'custom' && (
+          <Field label="Tipo de llamada">
+            <select className="field field--select" value={callType} onChange={(e) => setCallType(e.target.value as CallType)}>
+              <option value="1:1">1:1</option>
+              <option value="grupal">Grupal</option>
+            </select>
+          </Field>
+        )}
         <Field label="Descripción" full><textarea className="field field--area" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
 
+        <span className="afield__label afield--full form-section">Pantalla de inicio</span>
+        <Field label="Título de la lista (ej: Antes de preguntar:)" full><input className="field" value={settings.bullets_title ?? ''} onChange={setS('bullets_title')} /></Field>
+        <Field label="Puntos (uno por línea)" full><textarea className="field field--area" rows={3} value={(settings.bullets ?? []).join('\n')} onChange={setS('bullets')} /></Field>
+        <Field label="Recuadro destacado"><input className="field" value={settings.callout ?? ''} onChange={setS('callout')} /></Field>
+        <Field label="Frase en naranja del recuadro"><input className="field" value={settings.callout_highlight ?? ''} onChange={setS('callout_highlight')} /></Field>
+
+        {kind === 'pre_clase' && (
+          <>
+            <span className="afield__label afield--full form-section">Pantalla de cada pregunta</span>
+            <Field label="Ayuda (estructura)" full><input className="field" value={settings.question_help ?? ''} onChange={setS('question_help')} /></Field>
+            <Field label="Ejemplo" full><textarea className="field field--area" rows={4} value={settings.question_example ?? ''} onChange={setS('question_example')} /></Field>
+            <p className="muted aform__note afield--full">El programa y las clases salen de la pestaña Agenda.</p>
+          </>
+        )}
+
+        {kind === 'custom' && (
         <div className="afield--full">
-          <span className="afield__label">Preguntas (nombre, email y fecha de llamada se piden siempre)</span>
+          <span className="afield__label">Preguntas (nombre y email se piden siempre)</span>
           <div className="q-editor">
             {questions.map((q, i) => (
               <div key={q.id} className="q-editor__item">
@@ -165,6 +209,7 @@ function FormEditor({ form, onClose, onSaved }: { form: Form | null; onClose: ()
             <button type="button" className="btn btn--ghost" onClick={add}>+ Agregar pregunta</button>
           </div>
         </div>
+        )}
 
         {error && <p className="login__error afield--full">{error}</p>}
         <div className="aform__actions afield--full">

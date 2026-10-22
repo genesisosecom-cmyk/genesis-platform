@@ -18,6 +18,7 @@ import ResponseDetailPage from './admin/ResponseDetailPage';
 import FormsPage from './admin/FormsPage';
 import ClientsPage from './admin/ClientsPage';
 import ClientDetailPage from './admin/ClientDetailPage';
+import AgendaPage from './admin/AgendaPage';
 import FullScreenMessage from './components/FullScreenMessage';
 import { isSupabaseConfigured } from './lib/supabase';
 
@@ -67,6 +68,7 @@ export default function App() {
             <Route path="respuestas" element={<ResponsesPage />} />
             <Route path="respuestas/:responseId" element={<ResponseDetailPage />} />
             <Route path="formularios" element={<FormsPage />} />
+            <Route path="agenda" element={<AgendaPage />} />
             <Route path="clientes" element={<ClientsPage />} />
             <Route path="clientes/:clientId" element={<ClientDetailPage />} />
           </Route>
