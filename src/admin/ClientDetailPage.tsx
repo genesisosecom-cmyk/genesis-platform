@@ -12,6 +12,7 @@ import type { Client, FormResponse, LessonProgressRow, Payment, Profile } from '
 import { ArrowLeft } from '../components/Icons';
 import { discordVariants } from '../lib/discord';
 import { useContent } from '../content/ContentContext';
+import ClientCommissions from './finance/ClientCommissions';
 
 const escape = (v: string) => v.replace(/[\\%_]/g, '\\$&');
 
@@ -132,6 +133,10 @@ export default function ClientDetailPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="two-col">
+                <ClientCommissions clientId={c.id} />
               </div>
 
               <div className="two-col">

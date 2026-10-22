@@ -9,6 +9,7 @@ const TABS = [
   { to: '/admin/formularios', label: 'Formularios' },
   { to: '/admin/agenda', label: 'Agenda' },
   { to: '/admin/clientes', label: 'Clientes y pagos' },
+  { to: '/admin/finanzas', label: 'Finanzas' },
 ];
 
 export default function AdminLayout() {

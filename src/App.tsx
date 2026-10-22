@@ -21,6 +21,7 @@ import ClientDetailPage from './admin/ClientDetailPage';
 import AgendaPage from './admin/AgendaPage';
 import ContentAdminPage from './admin/ContentAdminPage';
 import ToolsAdminPage from './admin/ToolsAdminPage';
+import FinancePage from './admin/finance/FinancePage';
 import FullScreenMessage from './components/FullScreenMessage';
 import { isSupabaseConfigured } from './lib/supabase';
 
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="herramientas" element={<ToolsAdminPage />} />
             <Route path="clientes" element={<ClientsPage />} />
             <Route path="clientes/:clientId" element={<ClientDetailPage />} />
+            <Route path="finanzas" element={<FinancePage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
