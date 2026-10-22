@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { LessonProgressRow } from '../lib/types';
-import { MODULES, TOTAL_LESSONS, type Module } from '../data/content';
+import type { Module } from '../data/content';
+import { useContent } from '../content/ContentContext';
 
 interface LastWatched {
   moduleId: string;
@@ -22,18 +23,20 @@ interface ProgressContextValue {
 const key = (moduleId: string, lessonId: string) => `${moduleId}/${lessonId}`;
 
 /** Calcula el avance de un conjunto de filas (también lo usa el panel de admin). */
-export function summarizeProgress(rows: Pick<LessonProgressRow, 'module_id' | 'lesson_id' | 'completed'>[]) {
+export function summarizeProgress(rows: Pick<LessonProgressRow, 'module_id' | 'lesson_id' | 'completed'>[], modules: Module[]) {
   const done = new Set(rows.filter((r) => r.completed).map((r) => key(r.module_id, r.lesson_id)));
-  const perModule = MODULES.map((m) => {
+  const total = modules.reduce((n, m) => n + m.lessons.length, 0);
+  const perModule = modules.map((m) => {
     const d = m.lessons.filter((l) => done.has(key(m.id, l.id))).length;
-    return { module: m, done: d, total: m.lessons.length, percent: Math.round((d / m.lessons.length) * 100) };
+    return { module: m, done: d, total: m.lessons.length, percent: m.lessons.length ? Math.round((d / m.lessons.length) * 100) : 0 };
   });
   const completedCount = perModule.reduce((n, m) => n + m.done, 0);
   return {
     done,
     perModule,
     completedCount,
-    overallPercent: TOTAL_LESSONS ? Math.round((completedCount / TOTAL_LESSONS) * 100) : 0,
+    totalLessons: total,
+    overallPercent: total ? Math.round((completedCount / total) * 100) : 0,
   };
 }
 
@@ -41,6 +44,7 @@ const ProgressContext = createContext<ProgressContextValue | null>(null);
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
+  const { modules } = useContent();
   const userId = session?.user.id;
   const [rows, setRows] = useState<Record<string, LessonProgressRow>>({});
 
@@ -86,7 +90,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ProgressContextValue>(() => {
     const list = Object.values(rows);
-    const summary = summarizeProgress(list);
+    const summary = summarizeProgress(list, modules);
     const last = list
       .filter((r) => r.last_watched_at)
       .sort((a, b) => (a.last_watched_at! < b.last_watched_at! ? 1 : -1))[0];
@@ -105,7 +109,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       completedCount: summary.completedCount,
       overallPercent: summary.overallPercent,
     };
-  }, [rows, save]);
+  }, [rows, save, modules]);
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }

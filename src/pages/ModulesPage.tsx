@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
-import { MODULES, formatMinutes, moduleDuration } from '../data/content';
+import { formatMinutes, moduleDuration } from '../data/content';
+import { useContent } from '../content/ContentContext';
 import { useProgress } from '../progress/ProgressContext';
 import ProgressBar from '../components/ProgressBar';
 import { Check } from '../components/Icons';
 
 export default function ModulesPage() {
   const { moduleProgress } = useProgress();
+  const { modules: MODULES, loading } = useContent();
   return (
     <div className="fade-in">
       <header className="page__header">
@@ -13,6 +15,7 @@ export default function ModulesPage() {
         <h1 className="page__title">Contenido grabado</h1>
         <p className="page__lead">Avanzá a tu ritmo. Tu progreso se guarda automáticamente.</p>
       </header>
+      {!loading && MODULES.length === 0 && <p className="muted">Todavía no hay módulos publicados.</p>}
       <div className="grid">
         {MODULES.map((m) => {
           const p = moduleProgress(m);

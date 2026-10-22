@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { MODULES, findModule } from '../data/content';
+import { useContent } from '../content/ContentContext';
+import FullScreenMessage from '../components/FullScreenMessage';
 import { useProgress } from '../progress/ProgressContext';
 import VideoPlayer from '../components/VideoPlayer';
 import ProgressBar from '../components/ProgressBar';
@@ -9,6 +10,7 @@ import { ArrowLeft, ArrowRight, Check } from '../components/Icons';
 export default function ModuleDetailPage() {
   const { moduleId, lessonId } = useParams();
   const { isCompleted, toggleCompleted, markWatched, moduleProgress } = useProgress();
+  const { modules: MODULES, findModule, loading } = useContent();
   const module = findModule(moduleId);
   const lessonIndex = module ? Math.max(0, module.lessons.findIndex((l) => l.id === lessonId)) : 0;
   const lesson = module?.lessons[lessonIndex];
@@ -18,6 +20,7 @@ export default function ModuleDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [module?.id, lesson?.id]);
 
+  if (loading) return <FullScreenMessage loading />;
   if (!module || !lesson) return <Navigate to="/modulos" replace />;
 
   const prev = module.lessons[lessonIndex - 1];
