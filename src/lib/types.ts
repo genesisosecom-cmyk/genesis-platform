@@ -36,14 +36,39 @@ export interface Question {
 
 export type CallType = '1:1' | 'grupal';
 
+export type FormKind = 'custom' | 'pre_clase';
+
+export interface FormSettings {
+  bullets_title?: string;
+  bullets?: string[];
+  callout?: string;
+  callout_highlight?: string;
+  /** Solo pre_clase: ayuda y ejemplo que se muestran en cada pregunta. */
+  question_help?: string;
+  question_example?: string;
+}
+
 export interface Form {
   id: string;
   slug: string;
   title: string;
   description: string | null;
   call_type: CallType;
+  kind: FormKind;
+  settings: FormSettings;
   questions: Question[];
   is_active: boolean;
+  created_at: string;
+}
+
+export interface ClassSlot {
+  id: string;
+  kind: CallType;
+  weekday: number | null;
+  start_time: string | null;
+  coach: string;
+  programs: string[];
+  active: boolean;
   created_at: string;
 }
 
@@ -54,7 +79,11 @@ export interface FormResponse {
   respondent_name: string;
   respondent_email: string;
   call_date: string | null;
-  answers: Record<string, string | number>;
+  answers: Record<string, string | number | string[]>;
+  program: string | null;
+  coach: string | null;
+  call_kind: CallType | null;
+  slot_label: string | null;
   reviewed: boolean;
   admin_notes: string | null;
   submitted_at: string;

@@ -9,15 +9,18 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - **01 · Tu avance**, **02 · Módulos** (videos + marcar lecciones como completadas) y **03 · Baúl de herramientas**.
 - El progreso se guarda por usuario en la base de datos.
 
-**Formularios pre-llamada** — `/f/<link>`
-- Manu le manda el link al cliente antes de la llamada grupal o 1:1. No hace falta cuenta para responder.
-- Preguntas configurables: texto corto, texto largo, opción única y escala.
+**Formularios pre-clase** — `/f/<link>` (principal: `/f/pre-clase`)
+- Formato paso a paso, una pantalla por pregunta, con atajos de teclado (Enter, letras A/B/C) y barra de progreso.
+- Pre-clase: ¿Quién sos? → programa (Genesis OG, Fast Subscription, Genesis OS) → clase y fecha según la agenda de ese programa → preguntas (las que quiera) → enviar.
+- También se pueden armar formularios personalizados (texto corto, texto largo, opción única y escala).
+- No hace falta cuenta para responder.
 
 **Panel de superadmin** — `/admin` (solo usuarios con rol `superadmin`)
 - **Resumen:** usuarios activos, avance promedio, respuestas sin leer, cobrado en el mes, cuotas vencidas y próximos cobros.
 - **Usuarios:** avance de cada alumno por módulo, última actividad y formularios respondidos. Alta de usuarios (miembro o admin) con contraseña temporal de 10 minutos y botón para copiar los datos de acceso; en el primer ingreso el usuario elige su contraseña. También se puede regenerar la contraseña temporal, quitar acceso, dar rol admin y eliminar usuarios.
-- **Respuestas:** bandeja de formularios con filtros, vista de cada respuesta, "marcar como leída" y notas internas para preparar la llamada.
-- **Formularios:** crear/editar formularios, copiar el link, pausar/activar.
+- **Respuestas:** bandeja filtrable por próximas clases, coach y estado; vista de cada respuesta con sus preguntas, "marcar como leída", notas internas y eliminar.
+- **Formularios:** crear/editar formularios y los textos de la pantalla de inicio, copiar el link, pausar/activar.
+- **Agenda:** clases grupales semanales y 1:1 a pedido, con qué programas acceden a cada una.
 - **Clientes y pagos:** ficha de cada cliente (programa, estado, fechas, contacto), plan de cuotas generado automáticamente, registrar pagos, deuda vencida, próximos vencimientos, y su avance en el campus y sus formularios.
 
 Los clientes, usuarios y respuestas se vinculan por email automáticamente.

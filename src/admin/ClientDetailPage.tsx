@@ -155,8 +155,8 @@ export default function ClientDetailPage() {
                     {responses.map((r) => (
                       <li key={r.id}>
                         <Link to={`/admin/respuestas/${r.id}`} className="mini-list__item">
-                          <span>{forms.find((f) => f.id === r.form_id)?.title ?? 'Formulario'} {!r.reviewed && <Pill tone="accent">Nueva</Pill>}</span>
-                          <span className="muted">{r.call_date ? `Llamada ${fmtDate(r.call_date)}` : fmtDateTime(r.submitted_at)}</span>
+                          <span>{r.slot_label ?? forms.find((f) => f.id === r.form_id)?.title ?? 'Formulario'} {!r.reviewed && <Pill tone="accent">Nueva</Pill>}</span>
+                          <span className="muted">{r.call_date ? `Clase ${fmtDate(r.call_date)}` : fmtDateTime(r.submitted_at)}</span>
                         </Link>
                       </li>
                     ))}

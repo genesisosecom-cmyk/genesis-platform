@@ -258,7 +258,7 @@ function UserDetail({ row, formTitle, onClose, onChanged }: { row: Row; formTitl
         {responses.map((r) => (
           <li key={r.id}>
             <Link to={`/admin/respuestas/${r.id}`} className="mini-list__item">
-              <span>{formTitle(r.form_id)}</span>
+              <span>{r.slot_label ?? formTitle(r.form_id)}</span>
               <span className="muted">{fmtDateTime(r.submitted_at)}</span>
             </Link>
           </li>
