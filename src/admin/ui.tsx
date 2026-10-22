@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -12,7 +13,9 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
     };
   }, [onClose]);
 
-  return (
+  // Portal a <body>: si el modal queda dentro de un contenedor animado/con blur,
+  // `position: fixed` se recorta a ese contenedor en vez de cubrir la pantalla.
+  return createPortal(
     <div className="modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`modal__panel glass fade-in${wide ? ' modal__panel--wide' : ''}`}>
         <header className="modal__head">
@@ -21,7 +24,8 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
         </header>
         <div className="modal__body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

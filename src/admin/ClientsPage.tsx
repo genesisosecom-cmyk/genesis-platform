@@ -23,7 +23,7 @@ export default function ClientsPage() {
   const filtered = rows.filter(
     ({ client: c, b }) =>
       (status === 'all' || (status === 'overdue' ? b.overdueCount > 0 : c.status === status)) &&
-      (!q || `${c.full_name} ${c.email ?? ''} ${c.company ?? ''} ${c.program ?? ''}`.toLowerCase().includes(q)),
+      (!q || `${c.full_name} ${c.email ?? ''} ${c.company ?? ''} ${c.program ?? ''} ${c.discord_channel ?? ''}`.toLowerCase().includes(q)),
   );
 
   // Los totales se agrupan por moneda para no mezclar USD con ARS.
@@ -69,7 +69,7 @@ export default function ClientsPage() {
                 <tr key={c.id} className="table__row" onClick={() => navigate(`/admin/clientes/${c.id}`)}>
                   <td>
                     <div className="cell-main">{c.full_name}</div>
-                    <div className="cell-sub">{[c.program, c.email].filter(Boolean).join(' · ') || '—'}</div>
+                    <div className="cell-sub">{[c.program, c.discord_channel, c.email].filter(Boolean).join(' · ') || '—'}</div>
                   </td>
                   <td><Pill tone={c.status === 'activo' ? 'ok' : 'muted'}>{STATUS_LABELS[c.status]}</Pill></td>
                   <td>{b.paidCount}/{c.installments_count}</td>

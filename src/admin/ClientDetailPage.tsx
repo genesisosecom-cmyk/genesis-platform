@@ -75,6 +75,7 @@ export default function ClientDetailPage() {
                     <Pill tone={c.status === 'activo' ? 'ok' : 'muted'}>{STATUS_LABELS[c.status]}</Pill>
                     {c.email && <span>{c.email}</span>}
                     {c.phone && <a className="link" href={`https://wa.me/${c.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">{c.phone}</a>}
+                    {c.discord_channel && <span className="discord">Discord: {c.discord_channel}</span>}
                     {c.company && <span>{c.company}</span>}
                     <span>{fmtDate(c.start_date)} → {fmtDate(c.end_date)}</span>
                   </div>
