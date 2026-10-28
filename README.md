@@ -16,7 +16,7 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - No hace falta cuenta para responder.
 
 **Panel de superadmin** — `/admin` (solo usuarios con rol `superadmin`)
-- **Contenido:** crear, ordenar, publicar/ocultar y eliminar módulos y lecciones. Cada lección lleva el link del video (YouTube no listado, Vimeo, Loom, Bunny o .mp4), duración, descripción y **recursos de la clase** (archivos descargables de hasta 50 MB o links, con título y descripción corta), con vista previa.
+- **Contenido:** crear, ordenar, publicar/ocultar y eliminar módulos y lecciones. Cada módulo se puede dividir en **secciones** (ej: "Búsqueda y validación de producto") con sus clases; en el campus la lista de clases se agrupa por sección. Cada lección lleva el link del video (YouTube no listado, Vimeo, Loom, Bunny o .mp4), duración, descripción y **recursos de la clase** (archivos descargables de hasta 50 MB o links, con título y descripción corta), con vista previa.
 - **Herramientas:** baúl de herramientas con archivos subidos (bucket privado `toolbox`, hasta 50 MB) o links externos; borrador/publicada y orden.
 - **Resumen:** usuarios activos, avance promedio, respuestas sin leer, cobrado en el mes, cuotas vencidas y próximos cobros.
 - **Usuarios:** avance de cada alumno por módulo, última actividad y formularios respondidos. Alta de usuarios (miembro o admin) con contraseña temporal de 10 minutos y botón para copiar los datos de acceso; en el primer ingreso el usuario elige su contraseña. También se puede regenerar la contraseña temporal, quitar acceso, dar rol admin y eliminar usuarios.

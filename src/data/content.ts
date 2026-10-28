@@ -12,8 +12,15 @@ export interface LessonResource {
   fileName: string | null;
 }
 
+export interface ModuleSection {
+  id: string;
+  title: string;
+}
+
 export interface Lesson {
   id: string;
+  /** Sección del módulo a la que pertenece (null = sin sección). */
+  sectionId: string | null;
   title: string;
   /** Duración en minutos. */
   duration: number;
@@ -30,6 +37,8 @@ export interface Module {
   title: string;
   subtitle: string;
   published: boolean;
+  /** Secciones en orden. Las lecciones vienen ordenadas: primero las sin sección y después sección por sección. */
+  sections: ModuleSection[];
   lessons: Lesson[];
 }
 
