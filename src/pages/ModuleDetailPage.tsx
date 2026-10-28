@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useContent } from '../content/ContentContext';
 import FullScreenMessage from '../components/FullScreenMessage';
+import { openFileOrLink } from '../content/files';
 import { useProgress } from '../progress/ProgressContext';
 import VideoPlayer from '../components/VideoPlayer';
 import ProgressBar from '../components/ProgressBar';
@@ -56,6 +57,24 @@ export default function ModuleDetailPage() {
             </div>
           </div>
           {lesson.description && <p className="lesson-desc muted">{lesson.description}</p>}
+          {lesson.resources.length > 0 && (
+            <section className="resources">
+              <span className="eyebrow resources__title">Recursos de la clase</span>
+              <ol className="resources__list">
+                {lesson.resources.map((r, i) => (
+                  <li key={r.id}>
+                    <span className="resources__n">{String(i + 1).padStart(2, '0')}</span>
+                    <span>
+                      <button type="button" className="resources__link" onClick={() => openFileOrLink(r)}>
+                        {r.title}
+                      </button>
+                      {r.description && <span className="muted"> — {r.description}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
         </section>
 
         <aside className="glass lessons">

@@ -1,18 +1,11 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useAsync } from '../lib/useAsync';
 import { supabase } from '../lib/supabase';
-import { fetchTools, toolFileUrl, TOOLBOX_BUCKET } from '../content/api';
+import { fetchTools, toolFileUrl } from '../content/api';
 import { useContent } from '../content/ContentContext';
 import { TOOL_TYPES, type Tool } from '../data/content';
 import { Field, Modal, Pill, State } from './ui';
-
-const MAX_FILE_MB = 50; // límite por archivo del plan free de Supabase
-
-const fileSize = (bytes: number) => (bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`);
-
-/** Nombre de archivo seguro para la ruta en Storage (sin acentos ni espacios). */
-const safeName = (name: string) =>
-  name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'archivo';
+import { fileSize, MAX_FILE_MB, removeFiles, tooBig, uploadFile } from '../content/files';
 
 export default function ToolsAdminPage() {
   const { data, loading, error, reload } = useAsync(fetchTools, []);
@@ -46,7 +39,7 @@ export default function ToolsAdminPage() {
     if (!window.confirm(`¿Eliminar "${t.name}"${t.filePath ? ' y su archivo' : ''}? No se puede deshacer.`)) return;
     const { error: err } = await supabase.from('tools').delete().eq('id', t.id);
     if (err) return setMsg(err.message);
-    if (t.filePath) await supabase.storage.from(TOOLBOX_BUCKET).remove([t.filePath]);
+    await removeFiles([t.filePath]);
     setMsg('');
     refresh();
   };
@@ -133,7 +126,7 @@ function ToolModal({ tool, categories, nextPosition, onClose, onSaved }: { tool:
 
   const pickFile = (f: File | null) => {
     setError('');
-    if (f && f.size > MAX_FILE_MB * 1024 * 1024) {
+    if (f && tooBig(f)) {
       setFile(null);
       if (fileInput.current) fileInput.current.value = '';
       return setError(`El archivo pesa ${fileSize(f.size)}. El máximo es ${MAX_FILE_MB} MB: subilo a Google Drive y pegá el link.`);
@@ -155,11 +148,12 @@ function ToolModal({ tool, categories, nextPosition, onClose, onSaved }: { tool:
 
     if (source === 'file' && file) {
       setStatus(`Subiendo ${file.name}…`);
-      const path = `${crypto.randomUUID()}/${safeName(file.name)}`;
-      const { error: upErr } = await supabase.storage.from(TOOLBOX_BUCKET).upload(path, file, { contentType: file.type || undefined });
-      if (upErr) {
+      let path: string;
+      try {
+        path = await uploadFile(file);
+      } catch (err) {
         setStatus('');
-        return setError(`No se pudo subir el archivo: ${upErr.message}`);
+        return setError(`No se pudo subir el archivo: ${(err as Error).message}`);
       }
       filePath = path;
       fileName = file.name;
@@ -182,11 +176,11 @@ function ToolModal({ tool, categories, nextPosition, onClose, onSaved }: { tool:
     if (err) {
       setStatus('');
       // Si falló el guardado, no dejamos el archivo nuevo huérfano.
-      if (file && filePath && filePath !== tool?.filePath) await supabase.storage.from(TOOLBOX_BUCKET).remove([filePath]);
+      if (file && filePath && filePath !== tool?.filePath) await removeFiles([filePath]);
       return setError(err.message);
     }
     // Archivo anterior reemplazado o pasado a link: se borra del almacenamiento.
-    if (tool?.filePath && tool.filePath !== filePath) await supabase.storage.from(TOOLBOX_BUCKET).remove([tool.filePath]);
+    if (tool?.filePath && tool.filePath !== filePath) await removeFiles([tool.filePath]);
     onSaved();
   };
 

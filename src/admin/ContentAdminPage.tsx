@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import { fetchModules } from '../content/api';
 import { useContent } from '../content/ContentContext';
 import { formatMinutes, moduleDuration, type Lesson, type Module } from '../data/content';
+import { removeFiles } from '../content/files';
+import ResourcesEditor, { draftsFrom, saveResources, validateResources, type DraftResource } from './ResourcesEditor';
 import VideoPlayer from '../components/VideoPlayer';
 import { Field, Modal, Pill, State } from './ui';
 
@@ -55,11 +57,20 @@ export default function ContentAdminPage() {
 
   const removeModule = (m: Module) => {
     if (!window.confirm(`¿Eliminar el módulo "${m.title}" y sus ${m.lessons.length} lecciones? No se puede deshacer.`)) return;
-    run(() => supabase.from('modules').delete().eq('id', m.id));
+    run(async () => {
+      const res = await supabase.from('modules').delete().eq('id', m.id);
+      // Los recursos se borran en cascada; sus archivos hay que quitarlos del almacenamiento.
+      if (!res.error) await removeFiles(m.lessons.flatMap((l) => l.resources.map((r) => r.filePath)));
+      return res;
+    });
   };
   const removeLesson = (l: Lesson) => {
     if (!window.confirm(`¿Eliminar la lección "${l.title}"? No se puede deshacer.`)) return;
-    run(() => supabase.from('lessons').delete().eq('id', l.id));
+    run(async () => {
+      const res = await supabase.from('lessons').delete().eq('id', l.id);
+      if (!res.error) await removeFiles(l.resources.map((r) => r.filePath));
+      return res;
+    });
   };
 
   return (
@@ -113,6 +124,7 @@ export default function ContentAdminPage() {
                           <span>{l.title}</span>
                           <span className="cell-sub">
                             {l.videoUrl ? 'Con video' : <span className="plan__warn">Sin video</span>} · {l.duration} min
+                            {l.resources.length > 0 && ` · ${l.resources.length} ${l.resources.length === 1 ? 'recurso' : 'recursos'}`}
                           </span>
                         </div>
                         <div className="cms__actions">
@@ -208,8 +220,9 @@ function LessonModal({ module, lesson, onClose, onSaved }: { module: Module; les
   const [videoUrl, setVideoUrl] = useState(lesson?.videoUrl ?? '');
   const [duration, setDuration] = useState(String(lesson?.duration ?? ''));
   const [published, setPublished] = useState(lesson?.published ?? true);
+  const [resources, setResources] = useState<DraftResource[]>(() => draftsFrom(lesson?.resources ?? []));
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<string | false>(false);
 
   const validUrl = !videoUrl.trim() || /^https?:\/\/\S+$/.test(videoUrl.trim());
 
@@ -217,7 +230,10 @@ function LessonModal({ module, lesson, onClose, onSaved }: { module: Module; les
     e.preventDefault();
     if (!title.trim()) return setError('La lección necesita un título');
     if (!validUrl) return setError('El link del video tiene que empezar con https://');
-    setSaving(true);
+    const resourcesError = validateResources(resources);
+    if (resourcesError) return setError(resourcesError);
+    setError('');
+    setSaving('Guardando…');
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
@@ -225,11 +241,19 @@ function LessonModal({ module, lesson, onClose, onSaved }: { module: Module; les
       duration_min: Math.max(0, Math.round(Number(duration) || 0)),
       published,
     };
-    const { error: err } = lesson
-      ? await supabase.from('lessons').update(payload).eq('id', lesson.id)
-      : await supabase.from('lessons').insert({ ...payload, module_id: module.id, position: module.lessons.length + 1 });
-    setSaving(false);
-    if (err) return setError(err.message);
+    const res = lesson
+      ? await supabase.from('lessons').update(payload).eq('id', lesson.id).select('id').single()
+      : await supabase.from('lessons').insert({ ...payload, module_id: module.id, position: module.lessons.length + 1 }).select('id').single();
+    if (res.error) {
+      setSaving(false);
+      return setError(res.error.message);
+    }
+    try {
+      await saveResources((res.data as { id: string }).id, lesson?.resources ?? [], resources, setSaving);
+    } catch (err) {
+      setSaving(false);
+      return setError(`La lección se guardó, pero hubo un problema con los recursos: ${(err as Error).message}`);
+    }
     onSaved();
   };
 
@@ -252,10 +276,15 @@ function LessonModal({ module, lesson, onClose, onSaved }: { module: Module; les
         <Field label="Descripción (se muestra debajo del video)" full>
           <textarea className="field field--area" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
+        <div className="afield--full">
+          <span className="afield__label form-section">Recursos de la clase</span>
+          <ResourcesEditor value={resources} onChange={setResources} />
+        </div>
         {error && <p className="login__error afield--full">{error}</p>}
         <div className="aform__actions afield--full">
           <button type="button" className="btn btn--ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn--primary" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
+          {saving && <span className="muted" style={{ marginRight: 'auto' }}>{saving}</span>}
+          <button className="btn btn--primary" disabled={!!saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
         </div>
       </form>
     </Modal>

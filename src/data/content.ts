@@ -3,6 +3,15 @@
  * Supabase (tablas modules, lessons y tools) y se administra desde el panel.
  */
 
+export interface LessonResource {
+  id: string;
+  title: string;
+  description: string | null;
+  url: string | null;
+  filePath: string | null;
+  fileName: string | null;
+}
+
 export interface Lesson {
   id: string;
   title: string;
@@ -11,6 +20,7 @@ export interface Lesson {
   videoUrl?: string;
   description?: string;
   published: boolean;
+  resources: LessonResource[];
 }
 
 export interface Module {

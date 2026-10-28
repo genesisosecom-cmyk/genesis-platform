@@ -1,28 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useContent } from '../content/ContentContext';
-import { toolFileUrl } from '../content/api';
-import type { Tool } from '../data/content';
+import { openFileOrLink } from '../content/files';
 import { External } from '../components/Icons';
 
 const ALL = 'Todas';
-
-/** Abre la herramienta: archivo privado (link temporal) o link externo. */
-async function openTool(tool: Tool) {
-  if (tool.filePath) {
-    // Se abre la pestaña antes del await para que el navegador no la bloquee.
-    const win = window.open('', '_blank');
-    try {
-      const url = await toolFileUrl(tool.filePath);
-      if (win) win.location.href = url;
-      else window.location.href = url;
-    } catch {
-      win?.close();
-      window.alert('No se pudo abrir el archivo. Probá de nuevo.');
-    }
-  } else if (tool.url) {
-    window.open(tool.url, '_blank', 'noopener');
-  }
-}
 
 export default function ToolboxPage() {
   const { tools: TOOLS, loading } = useContent();
@@ -58,7 +39,7 @@ export default function ToolboxPage() {
 
       <div className="grid">
         {tools.map((t) => (
-          <button key={t.id} type="button" onClick={() => openTool(t)} className="glass tool-card tool-card--btn">
+          <button key={t.id} type="button" onClick={() => openFileOrLink(t)} className="glass tool-card tool-card--btn">
             <div className="tool-card__top">
               <span className="badge badge--soft">{t.type}</span>
               <span className="tool-card__ext">{t.filePath ? 'Descargar' : <External width={16} height={16} />}</span>

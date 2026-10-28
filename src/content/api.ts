@@ -33,13 +33,25 @@ export interface ToolRow {
   published: boolean;
 }
 
+export interface LessonResourceRow {
+  id: string;
+  lesson_id: string;
+  position: number;
+  title: string;
+  description: string | null;
+  url: string | null;
+  file_path: string | null;
+  file_name: string | null;
+}
+
 export const TOOLBOX_BUCKET = 'toolbox';
 
 /** Módulos con sus lecciones ordenadas (lo que RLS deje ver: publicados, o todo si es admin). */
 export async function fetchModules(): Promise<Module[]> {
-  const [mods, lessons] = await Promise.all([
+  const [mods, lessons, resources] = await Promise.all([
     supabase.from('modules').select('*').order('position').then((r) => unwrap(r) as ModuleRow[]),
     supabase.from('lessons').select('*').order('position').then((r) => unwrap(r) as LessonRow[]),
+    supabase.from('lesson_resources').select('*').order('position').then((r) => unwrap(r) as LessonResourceRow[]),
   ]);
   return mods.map((m, i) => ({
     id: m.id,
@@ -56,6 +68,9 @@ export async function fetchModules(): Promise<Module[]> {
         videoUrl: l.video_url ?? undefined,
         description: l.description ?? undefined,
         published: l.published,
+        resources: resources
+          .filter((x) => x.lesson_id === l.id)
+          .map((x) => ({ id: x.id, title: x.title, description: x.description, url: x.url, filePath: x.file_path, fileName: x.file_name })),
       })),
   }));
 }
