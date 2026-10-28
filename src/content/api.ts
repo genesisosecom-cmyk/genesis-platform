@@ -9,9 +9,17 @@ export interface ModuleRow {
   published: boolean;
 }
 
+export interface SectionRow {
+  id: string;
+  module_id: string;
+  position: number;
+  title: string;
+}
+
 export interface LessonRow {
   id: string;
   module_id: string;
+  section_id: string | null;
   position: number;
   title: string;
   description: string | null;
@@ -48,31 +56,42 @@ export const TOOLBOX_BUCKET = 'toolbox';
 
 /** Módulos con sus lecciones ordenadas (lo que RLS deje ver: publicados, o todo si es admin). */
 export async function fetchModules(): Promise<Module[]> {
-  const [mods, lessons, resources] = await Promise.all([
+  const [mods, lessons, resources, sections] = await Promise.all([
     supabase.from('modules').select('*').order('position').then((r) => unwrap(r) as ModuleRow[]),
     supabase.from('lessons').select('*').order('position').then((r) => unwrap(r) as LessonRow[]),
     supabase.from('lesson_resources').select('*').order('position').then((r) => unwrap(r) as LessonResourceRow[]),
+    supabase.from('module_sections').select('*').order('position').then((r) => unwrap(r) as SectionRow[]),
   ]);
-  return mods.map((m, i) => ({
-    id: m.id,
-    number: i + 1,
-    title: m.title,
-    subtitle: m.subtitle ?? '',
-    published: m.published,
-    lessons: lessons
+  return mods.map((m, i) => {
+    const modSections = sections.filter((s) => s.module_id === m.id);
+    // Orden de lectura: lecciones sin sección, después cada sección en su orden.
+    const rank = (l: LessonRow) => (l.section_id ? modSections.findIndex((s) => s.id === l.section_id) + 1 : 0);
+    const modLessons = lessons
       .filter((l) => l.module_id === m.id)
-      .map((l) => ({
-        id: l.id,
-        title: l.title,
-        duration: l.duration_min,
-        videoUrl: l.video_url ?? undefined,
-        description: l.description ?? undefined,
-        published: l.published,
-        resources: resources
-          .filter((x) => x.lesson_id === l.id)
-          .map((x) => ({ id: x.id, title: x.title, description: x.description, url: x.url, filePath: x.file_path, fileName: x.file_name })),
-      })),
-  }));
+      .map((l) => (l.section_id && !modSections.some((s) => s.id === l.section_id) ? { ...l, section_id: null } : l))
+      .sort((a, b) => rank(a) - rank(b) || a.position - b.position);
+    return {
+      id: m.id,
+      number: i + 1,
+      title: m.title,
+      subtitle: m.subtitle ?? '',
+      published: m.published,
+      sections: modSections.map((s) => ({ id: s.id, title: s.title })),
+      lessons: modLessons
+        .map((l) => ({
+          id: l.id,
+          sectionId: l.section_id,
+          title: l.title,
+          duration: l.duration_min,
+          videoUrl: l.video_url ?? undefined,
+          description: l.description ?? undefined,
+          published: l.published,
+          resources: resources
+            .filter((x) => x.lesson_id === l.id)
+            .map((x) => ({ id: x.id, title: x.title, description: x.description, url: x.url, filePath: x.file_path, fileName: x.file_name })),
+        })),
+    };
+  });
 }
 
 export async function fetchTools(): Promise<Tool[]> {

@@ -3,7 +3,7 @@ import { useAsync } from '../lib/useAsync';
 import { supabase } from '../lib/supabase';
 import { fetchModules } from '../content/api';
 import { useContent } from '../content/ContentContext';
-import { formatMinutes, moduleDuration, type Lesson, type Module } from '../data/content';
+import { formatMinutes, moduleDuration, type Lesson, type Module, type ModuleSection } from '../data/content';
 import { removeFiles } from '../content/files';
 import ResourcesEditor, { draftsFrom, saveResources, validateResources, type DraftResource } from './ResourcesEditor';
 import VideoPlayer from '../components/VideoPlayer';
@@ -11,10 +11,10 @@ import { Field, Modal, Pill, State } from './ui';
 
 type Editing =
   | { kind: 'module'; module: Module | null }
-  | { kind: 'lesson'; module: Module; lesson: Lesson | null };
+  | { kind: 'lesson'; module: Module; lesson: Lesson | null; sectionId: string | null };
 
 /** Reasigna posiciones 1..n en el orden dado (solo actualiza las filas que cambian). */
-async function persistOrder(table: 'modules' | 'lessons', ids: string[]) {
+async function persistOrder(table: 'modules' | 'lessons' | 'module_sections', ids: string[]) {
   await Promise.all(ids.map((id, i) => supabase.from(table).update({ position: i + 1 }).eq('id', id)));
 }
 
@@ -50,9 +50,27 @@ export default function ContentAdminPage() {
     const next = moved(modules, i, d);
     if (next) run(() => persistOrder('modules', next.map((m) => m.id)));
   };
-  const moveLesson = (m: Module, i: number, d: number) => {
-    const next = moved(m.lessons, i, d);
+  // Las lecciones se ordenan dentro de su sección.
+  const moveLesson = (group: Lesson[], i: number, d: number) => {
+    const next = moved(group, i, d);
     if (next) run(() => persistOrder('lessons', next.map((l) => l.id)));
+  };
+  const moveSection = (m: Module, i: number, d: number) => {
+    const next = moved(m.sections, i, d);
+    if (next) run(() => persistOrder('module_sections', next.map((x) => x.id)));
+  };
+  const addSection = (m: Module) => {
+    const title = window.prompt('Nombre de la sección (ej: Búsqueda y validación de producto):')?.trim();
+    if (title) run(() => supabase.from('module_sections').insert({ module_id: m.id, title, position: m.sections.length + 1 }));
+  };
+  const renameSection = (x: ModuleSection) => {
+    const title = window.prompt('Nuevo nombre de la sección:', x.title)?.trim();
+    if (title && title !== x.title) run(() => supabase.from('module_sections').update({ title }).eq('id', x.id));
+  };
+  const removeSection = (m: Module, x: ModuleSection) => {
+    const n = m.lessons.filter((l) => l.sectionId === x.id).length;
+    if (!window.confirm(`¿Eliminar la sección "${x.title}"?${n ? ` Sus ${n} clases no se borran: quedan sin sección.` : ''}`)) return;
+    run(() => supabase.from('module_sections').delete().eq('id', x.id));
   };
 
   const removeModule = (m: Module) => {
@@ -116,30 +134,55 @@ export default function ContentAdminPage() {
 
                 {isOpen && (
                   <div className="cms__lessons">
-                    {m.lessons.length === 0 && <p className="muted">Este módulo todavía no tiene lecciones.</p>}
-                    {m.lessons.map((l, j) => (
-                      <div key={l.id} className="cms__lesson">
-                        <span className="cms__lnum">{j + 1}</span>
-                        <div className="cms__ltitle">
-                          <span>{l.title}</span>
-                          <span className="cell-sub">
-                            {l.videoUrl ? 'Con video' : <span className="plan__warn">Sin video</span>} · {l.duration} min
-                            {l.resources.length > 0 && ` · ${l.resources.length} ${l.resources.length === 1 ? 'recurso' : 'recursos'}`}
-                          </span>
-                        </div>
-                        <div className="cms__actions">
-                          {l.published ? <Pill tone="ok">Publicada</Pill> : <Pill tone="muted">Borrador</Pill>}
-                          <button className="btn btn--ghost btn--sm" onClick={() => moveLesson(m, j, -1)} disabled={j === 0} aria-label="Subir">↑</button>
-                          <button className="btn btn--ghost btn--sm" onClick={() => moveLesson(m, j, 1)} disabled={j === m.lessons.length - 1} aria-label="Bajar">↓</button>
-                          <button className="btn btn--ghost btn--sm" onClick={() => setEditing({ kind: 'lesson', module: m, lesson: l })}>Editar</button>
-                          <button className="btn btn--ghost btn--sm" onClick={() => run(() => supabase.from('lessons').update({ published: !l.published }).eq('id', l.id))}>
-                            {l.published ? 'Ocultar' : 'Publicar'}
+                    {m.lessons.length === 0 && m.sections.length === 0 && <p className="muted">Este módulo todavía no tiene lecciones.</p>}
+                    {[{ section: null as ModuleSection | null }, ...m.sections.map((x) => ({ section: x as ModuleSection | null }))].map(({ section }, si) => {
+                      const group = m.lessons.filter((l) => (section ? l.sectionId === section.id : !l.sectionId));
+                      // El grupo "sin sección" solo se muestra si tiene clases o si el módulo no usa secciones.
+                      if (!section && !group.length && m.sections.length) return null;
+                      return (
+                        <div key={section?.id ?? 'none'} className={`cms__group${section ? ' cms__group--section' : ''}`}>
+                          {section && (
+                            <div className="cms__section">
+                              <span className="cms__section-title">{section.title}</span>
+                              <span className="muted cms__section-count">{group.length} {group.length === 1 ? 'clase' : 'clases'}</span>
+                              <div className="cms__actions">
+                                <button className="btn btn--ghost btn--sm" onClick={() => moveSection(m, si - 1, -1)} disabled={si === 1} aria-label="Subir sección">↑</button>
+                                <button className="btn btn--ghost btn--sm" onClick={() => moveSection(m, si - 1, 1)} disabled={si === m.sections.length} aria-label="Bajar sección">↓</button>
+                                <button className="btn btn--ghost btn--sm" onClick={() => renameSection(section)}>Renombrar</button>
+                                <button className="btn btn--ghost btn--sm btn--danger" onClick={() => removeSection(m, section)} aria-label="Eliminar sección">✕</button>
+                              </div>
+                            </div>
+                          )}
+                          {!section && m.sections.length > 0 && <span className="cms__section-title cms__section-title--none">Sin sección</span>}
+                          {group.map((l, j) => (
+                            <div key={l.id} className="cms__lesson">
+                              <span className="cms__lnum">{m.lessons.indexOf(l) + 1}</span>
+                              <div className="cms__ltitle">
+                                <span>{l.title}</span>
+                                <span className="cell-sub">
+                                  {l.videoUrl ? 'Con video' : <span className="plan__warn">Sin video</span>} · {l.duration} min
+                                  {l.resources.length > 0 && ` · ${l.resources.length} ${l.resources.length === 1 ? 'recurso' : 'recursos'}`}
+                                </span>
+                              </div>
+                              <div className="cms__actions">
+                                {l.published ? <Pill tone="ok">Publicada</Pill> : <Pill tone="muted">Borrador</Pill>}
+                                <button className="btn btn--ghost btn--sm" onClick={() => moveLesson(group, j, -1)} disabled={j === 0} aria-label="Subir">↑</button>
+                                <button className="btn btn--ghost btn--sm" onClick={() => moveLesson(group, j, 1)} disabled={j === group.length - 1} aria-label="Bajar">↓</button>
+                                <button className="btn btn--ghost btn--sm" onClick={() => setEditing({ kind: 'lesson', module: m, lesson: l, sectionId: l.sectionId })}>Editar</button>
+                                <button className="btn btn--ghost btn--sm" onClick={() => run(() => supabase.from('lessons').update({ published: !l.published }).eq('id', l.id))}>
+                                  {l.published ? 'Ocultar' : 'Publicar'}
+                                </button>
+                                <button className="btn btn--ghost btn--sm btn--danger" onClick={() => removeLesson(l)} aria-label="Eliminar lección">✕</button>
+                              </div>
+                            </div>
+                          ))}
+                          <button className="btn btn--ghost btn--sm cms__add" onClick={() => setEditing({ kind: 'lesson', module: m, lesson: null, sectionId: section?.id ?? null })}>
+                            + Agregar clase{section ? ` a "${section.title}"` : ''}
                           </button>
-                          <button className="btn btn--ghost btn--sm btn--danger" onClick={() => removeLesson(l)} aria-label="Eliminar lección">✕</button>
                         </div>
-                      </div>
-                    ))}
-                    <button className="btn btn--ghost btn--sm cms__add" onClick={() => setEditing({ kind: 'lesson', module: m, lesson: null })}>+ Agregar lección</button>
+                      );
+                    })}
+                    <button className="btn btn--ghost btn--sm cms__add cms__add--section" onClick={() => addSection(m)}>+ Nueva sección</button>
                   </div>
                 )}
               </section>
@@ -164,6 +207,7 @@ export default function ContentAdminPage() {
         <LessonModal
           module={editing.module}
           lesson={editing.lesson}
+          defaultSectionId={editing.sectionId}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -214,7 +258,8 @@ function ModuleModal({ module, nextPosition, onClose, onSaved }: { module: Modul
   );
 }
 
-function LessonModal({ module, lesson, onClose, onSaved }: { module: Module; lesson: Lesson | null; onClose: () => void; onSaved: () => void }) {
+function LessonModal({ module, lesson, defaultSectionId, onClose, onSaved }: { module: Module; lesson: Lesson | null; defaultSectionId: string | null; onClose: () => void; onSaved: () => void }) {
+  const [sectionId, setSectionId] = useState<string>(lesson?.sectionId ?? defaultSectionId ?? '');
   const [title, setTitle] = useState(lesson?.title ?? '');
   const [description, setDescription] = useState(lesson?.description ?? '');
   const [videoUrl, setVideoUrl] = useState(lesson?.videoUrl ?? '');
@@ -240,10 +285,14 @@ function LessonModal({ module, lesson, onClose, onSaved }: { module: Module; les
       video_url: videoUrl.trim() || null,
       duration_min: Math.max(0, Math.round(Number(duration) || 0)),
       published,
+      section_id: sectionId || null,
     };
+    // Al crearla o cambiarla de sección, queda última dentro de su sección.
+    const endOfSection = module.lessons.filter((l) => (l.sectionId ?? '') === sectionId && l.id !== lesson?.id).length + 1;
+    const movedSection = !lesson || (lesson.sectionId ?? '') !== sectionId;
     const res = lesson
-      ? await supabase.from('lessons').update(payload).eq('id', lesson.id).select('id').single()
-      : await supabase.from('lessons').insert({ ...payload, module_id: module.id, position: module.lessons.length + 1 }).select('id').single();
+      ? await supabase.from('lessons').update({ ...payload, ...(movedSection ? { position: endOfSection } : {}) }).eq('id', lesson.id).select('id').single()
+      : await supabase.from('lessons').insert({ ...payload, module_id: module.id, position: endOfSection }).select('id').single();
     if (res.error) {
       setSaving(false);
       return setError(res.error.message);
@@ -261,6 +310,14 @@ function LessonModal({ module, lesson, onClose, onSaved }: { module: Module; les
     <Modal title={`${lesson ? 'Editar' : 'Nueva'} lección · ${module.title}`} onClose={onClose} wide>
       <form className="aform" onSubmit={submit}>
         <Field label="Título" full><input className="field" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus /></Field>
+        {module.sections.length > 0 && (
+          <Field label="Sección" full>
+            <select className="field field--select" value={sectionId} onChange={(e) => setSectionId(e.target.value)}>
+              <option value="">Sin sección</option>
+              {module.sections.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+            </select>
+          </Field>
+        )}
         <Field label="Link del video" full>
           <input className="field" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://youtu.be/… · https://vimeo.com/… · https://www.loom.com/share/…" />
         </Field>

@@ -805,3 +805,17 @@ html { scrollbar-gutter: stable; }
   .res-editor__row { flex-wrap: wrap; }
   .res-editor__row--indent { padding-left: 0; }
 }
+
+/* Secciones dentro del módulo (campus) */
+.lessons__group { display: flex; flex-direction: column; gap: 4px; }
+.lessons__group + .lessons__group { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.lessons__section { padding: 2px 12px 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+/* Secciones dentro del módulo (admin) */
+.cms__group { display: flex; flex-direction: column; gap: 2px; }
+.cms__group--section { margin-top: 12px; padding: 4px 14px 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, 0.18); }
+.cms__section { display: flex; align-items: center; gap: 12px; padding: 8px 0 6px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.cms__section-title { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.cms__section-title--none { color: var(--muted); padding: 4px 0; }
+.cms__section-count { font-size: 12px; margin-right: auto; }
+.cms__add--section { margin-top: 14px; border-style: dashed; }
