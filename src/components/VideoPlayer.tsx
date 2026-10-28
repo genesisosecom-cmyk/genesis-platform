@@ -1,5 +1,22 @@
 import { Play } from './Icons';
 
+/**
+ * Embed de Loom sin la barra superior (título, vistas, autor y botones de compartir).
+ * Acepta links /share/ o /embed/ y conserva el tiempo de inicio (?t=).
+ */
+function loomEmbed(u: URL) {
+  const id = u.pathname.split('/')[2];
+  const params = new URLSearchParams({
+    hideEmbedTopBar: 'true',
+    hide_title: 'true',
+    hide_owner: 'true',
+    hide_share: 'true',
+  });
+  const t = u.searchParams.get('t');
+  if (t) params.set('t', t);
+  return `https://www.loom.com/embed/${id}?${params.toString()}`;
+}
+
 function toEmbed(url: string): { kind: 'iframe' | 'video'; src: string } | null {
   try {
     const u = new URL(url);
@@ -13,8 +30,8 @@ function toEmbed(url: string): { kind: 'iframe' | 'video'; src: string } | null 
     if (host === 'vimeo.com') {
       return { kind: 'iframe', src: `https://player.vimeo.com/video${u.pathname}` };
     }
-    if (host === 'loom.com' && u.pathname.startsWith('/share/')) {
-      return { kind: 'iframe', src: `https://www.loom.com/embed/${u.pathname.slice(7)}` };
+    if (host === 'loom.com' && /^\/(share|embed)\//.test(u.pathname)) {
+      return { kind: 'iframe', src: loomEmbed(u) };
     }
     if (/\.(mp4|webm|m3u8)$/i.test(u.pathname)) return { kind: 'video', src: url };
     return { kind: 'iframe', src: url };
