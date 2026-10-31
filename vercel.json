@@ -1,3 +1,6 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/public/:event", "destination": "https://zanwrwysbmvgytfzymaz.supabase.co/functions/v1/ingest/:event" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

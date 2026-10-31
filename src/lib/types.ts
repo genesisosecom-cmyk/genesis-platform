@@ -123,3 +123,71 @@ export interface Payment {
   notes: string | null;
   created_at: string;
 }
+
+// ---------- Leads de la landing ----------
+
+export interface Launch {
+  id: string;
+  name: string;
+  starts_at: string | null;
+  is_current: boolean;
+  created_at: string;
+}
+
+export interface SalesRep {
+  name: string;
+  kind: 'sdr' | 'closer';
+  whatsapp_url: string;
+  assign_order: number;
+  active: boolean;
+  profile_id: string | null;
+  created_at: string;
+}
+
+export interface Lead {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  full_name: string;
+  sdr: string | null;
+  possible_duplicate: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PostClassStatus = 'Nuevo lead' | 'No atendió' | 'Agendado' | 'No se cerró' | 'Cliente · falta onboarding' | 'Cliente';
+
+export interface LeadLaunch {
+  id: string;
+  lead_id: string;
+  launch_id: string;
+  optin_at: string | null;
+  optin_count: number;
+  inversion_meta: string | null;
+  califica: boolean | null;
+  variant: string | null;
+  tracking: Record<string, string>;
+  source: string | null;
+  stage: string;
+  contact_attempts: number;
+  toco_grupo: boolean;
+  toco_grupo_at: string | null;
+  applied_at: string | null;
+  application: Record<string, unknown> | null;
+  application_tracking: Record<string, string> | null;
+  route: 'aplicado' | 'rechazado' | null;
+  post_class_status: PostClassStatus | null;
+  closer: string | null;
+  next_action_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LandingVisit {
+  launch_id: string;
+  day: string;
+  source: string;
+  variant: string;
+  visits: number;
+}
