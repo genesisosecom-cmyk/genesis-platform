@@ -16,6 +16,7 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - No hace falta cuenta para responder.
 
 **Panel de superadmin** — `/admin` (solo usuarios con rol `superadmin`)
+- **Leads:** leads de la landing por lanzamiento (inversión, califica, versión, fuente, grupo, aplicación), visitas → optins por versión y por fuente, y los links de WhatsApp de los SDR.
 - **Contenido:** crear, ordenar, publicar/ocultar y eliminar módulos y lecciones. Cada módulo se puede dividir en **secciones** (ej: "Búsqueda y validación de producto") con sus clases; en el campus la lista de clases se agrupa por sección. Cada lección lleva el link del video (YouTube no listado, Vimeo, Loom, Bunny o .mp4), duración, descripción y **recursos de la clase** (archivos descargables de hasta 50 MB o links, con título y descripción corta), con vista previa.
 - **Herramientas:** baúl de herramientas con archivos subidos (bucket privado `toolbox`, hasta 50 MB) o links externos; borrador/publicada y orden.
 - **Resumen:** usuarios activos, avance promedio, respuestas sin leer, cobrado en el mes, cuotas vencidas y próximos cobros.
@@ -48,6 +49,26 @@ npm run build    # build de producción en dist/
 ```
 
 En Vercel, cargá `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` como variables de entorno. `vercel.json` ya tiene el rewrite para las rutas del SPA.
+
+## Leads de la landing (applygenesis.com)
+
+La landing reenvía cada evento server-to-server a la Edge Function `ingest`:
+
+| Endpoint | Qué hace |
+| --- | --- |
+| `POST …/ingest/optin` | Crea o actualiza el lead (clave: email en minúsculas y/o teléfono solo dígitos) y lo suma al lanzamiento actual. Responde `{ ok, id, repetido }`. |
+| `POST …/ingest/visita` | Suma 1 visita por día, fuente y versión (`tracking.ab`). |
+| `POST …/ingest/grupo` | Marca que tocó "Entrar al grupo". Si el optin todavía no llegó, queda pendiente y se aplica cuando llega. |
+| `POST …/ingest/aplicacion` | Guarda la aplicación post-clase, asigna SDR (50/50 determinístico) y responde `{ ok, ruta, sdr, wa }`. |
+
+- URL base: `https://zanwrwysbmvgytfzymaz.supabase.co/functions/v1/ingest/optin`. Con el dominio del campus también funciona `https://CAMPUS/api/public/optin` (rewrite en `vercel.json`).
+- Deploy: `supabase functions deploy ingest --no-verify-jwt` y el secret `GENESIS_INGEST_SECRET` (`supabase secrets set GENESIS_INGEST_SECRET=…`). La landing lo manda en el header `X-Genesis-Secret`; por ahora, si no viene se acepta igual y queda registrado en `ingest_log`.
+- Toda la lógica está en las funciones de Postgres `ingest_*` (migración `20261031000000_leads.sql`), una llamada por evento.
+- Lanzamientos en la tabla `launches` (`is_current` marca a cuál se asignan los eventos). Los links de WhatsApp de los SDR se editan en Panel → Leads.
+- Prueba de punta a punta (borra sus datos al final):
+  ```bash
+  GENESIS_INGEST_SECRET=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/test-ingest.mjs https://zanwrwysbmvgytfzymaz.supabase.co/functions/v1/ingest/optin
+  ```
 
 ## Seguridad
 
