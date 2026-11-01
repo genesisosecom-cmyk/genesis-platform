@@ -50,14 +50,17 @@ async function post(event, body, { text = false, headers = {} } = {}) {
   return { status: res.status, json, ms };
 }
 
-/** Mismo reparto que el servidor: h = (h*31 + charCode) >>> 0. */
-function expectedSdr(key) {
-  let h = 0;
-  for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return ['Mati', 'Santi'][h % 2];
-}
+/** /aplicacion aceptada: con SDR devuelve su nombre y su WhatsApp; sin SDR, sdr vacío y el WhatsApp por defecto. */
+const validRouting = (j) => j?.ok && j.ruta === 'aplicado' && typeof j.sdr === 'string' && typeof j.wa === 'string' && (!j.sdr || /^https?:\/\//.test(j.wa));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Nombre que /aplicacion devuelve para un SDR: vacío si no tiene o si no puede recibir leads. */
+async function sdrName(id) {
+  if (!id) return '';
+  const { data } = await db.from('sales_reps').select('name, sdr_status, whatsapp_url').eq('id', id).single();
+  return data && ['activo', 'pausado'].includes(data.sdr_status) && data.whatsapp_url ? data.name : '';
+}
 
 async function leadByEmail(email) {
   const { data, error } = await db.from('leads').select('*, lead_launches(*), lead_events(*)').eq('email', email).maybeSingle();
@@ -114,14 +117,12 @@ async function main() {
     ciclo: 'Corto', facturacion: 'USD 10k', inversion: 'Entre USD 3.000 y USD 6.000',
     optin: { email: A.email, telefono: A.telefono }, tracking: { utm_source: SOURCE }, tracking_link: { utm_source: 'whatsapp', utm_medium: 'grupo' },
   });
-  const sdrA = expectedSdr(A.email);
-  check(`/aplicacion de A → aplicado, SDR ${sdrA}`, ap1.json?.ok && ap1.json.ruta === 'aplicado' && ap1.json.sdr === sdrA && /^https:\/\//.test(ap1.json.wa), JSON.stringify(ap1));
+  check(`/aplicacion de A → aplicado (SDR "${ap1.json?.sdr}")`, validRouting(ap1.json), JSON.stringify(ap1));
 
   // --- /aplicacion sin optin previo ---
   const C = { email: mail('c'), telefono: phone(3) };
   const ap2 = await post('aplicacion', { nombre: 'Test C', ...C, inversion: 'Más de USD 6.000', optin: {}, tracking: {}, tracking_link: {} });
-  const sdrC = expectedSdr(C.email);
-  check(`/aplicacion sin optin → aplicado, SDR ${sdrC}`, ap2.json?.ruta === 'aplicado' && ap2.json.sdr === sdrC, JSON.stringify(ap2));
+  check(`/aplicacion sin optin → aplicado (SDR "${ap2.json?.sdr}")`, validRouting(ap2.json), JSON.stringify(ap2));
 
   // --- /aplicacion rechazada ---
   const ap3 = await post('aplicacion', { nombre: 'Test B', email: B.email, telefono: B.telefono, inversion: 'Menos de USD 1.000', optin: { email: B.email } });
@@ -152,11 +153,12 @@ async function main() {
     la?.variant === '1' && la.source === `Test-${ts} · cpc` && la.tracking?.fbclid === 'abc' && la.optin_count === 2, JSON.stringify(la));
   check('A: inversión y califica recalculadas con el último optin', la?.inversion_meta === 'De 500 a 1.000 dólares' && la.califica === true);
   check('A: tocó el grupo', la?.toco_grupo === true && la.toco_grupo_at);
-  check(`A: aplicó, SDR ${sdrA}, estado "Nuevo lead", etapa "Nuevo"`,
-    a?.sdr === sdrA && la?.route === 'aplicado' && la.post_class_status === 'Nuevo lead' && la.stage === 'Nuevo' && la.application?.objetivo === 'Escalar');
+  check('A: aplicó y la respuesta coincide con su SDR', (await sdrName(a?.sdr_id)) === ap1.json?.sdr);
+  check('A: aplicó, estado "Nuevo lead", etapa "Nuevo"',
+    la?.route === 'aplicado' && la.post_class_status === 'Nuevo lead' && la.stage === 'Nuevo' && la.application?.objetivo === 'Escalar');
   check('A: el email del optin no se pisó y el distinto quedó en el historial',
     a?.email === A.email && a.lead_events.some((e) => e.kind === 'dato_distinto' && e.summary.includes(mail('a-otro'))));
-  const kindsA = a?.lead_events.map((e) => e.kind).sort().join(',');
+  const kindsA = a?.lead_events.map((e) => e.kind).filter((k) => k !== 'sdr').sort().join(',');
   check('A: historial completo', kindsA === 'aplicacion,dato_distinto,grupo,optin,optin_repetido', kindsA);
 
   const b = await leadByEmail(B.email);
@@ -164,13 +166,14 @@ async function main() {
   check('B: /grupo anterior al optin quedó aplicado', lb?.toco_grupo === true && b.lead_events.some((e) => e.kind === 'grupo'));
   check('B: califica recalculada en el servidor (mandó "Sí" con menos de 100)', lb?.califica === false);
   check('B: fuente "Instagram · bio"', lb?.source === 'Instagram · bio');
-  check('B: rechazado → etapa "Próximo ciclo", sin SDR', lb?.route === 'rechazado' && lb.stage === 'Próximo ciclo' && !b.sdr && lb.post_class_status === null);
+  check('B: rechazado → etapa "Próximo ciclo", sin SDR', lb?.route === 'rechazado' && lb.stage === 'Próximo ciclo' && lb.post_class_status === null);
   const { data: pend } = await db.from('lead_pending_events').select('*').eq('email', B.email);
   check('B: el evento pendiente quedó marcado como aplicado', pend?.length === 1 && pend[0].applied_at && pend[0].lead_id === b?.id);
 
   const c = await leadByEmail(C.email);
   const lc = c?.lead_launches?.[0];
-  check('C: creado como posible duplicado, aplicado, sin optin', c?.possible_duplicate === true && lc?.route === 'aplicado' && lc.optin_at === null && c.sdr === sdrC);
+  check('C: creado como posible duplicado, aplicado, sin optin', c?.possible_duplicate === true && lc?.route === 'aplicado' && lc.optin_at === null);
+  check('C: la respuesta coincide con su SDR', (await sdrName(c?.sdr_id)) === ap2.json?.sdr);
 
   const { data: visits } = await db.from('landing_visits').select('*').eq('source', `Test-${ts} · cpc`);
   check('Visitas: 2 en la versión 1 para la fuente de prueba', visits?.length === 1 && visits[0].visits === 2 && visits[0].variant === '1', JSON.stringify(visits));

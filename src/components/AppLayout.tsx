@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { useTeamHome } from '../auth/RequireAuth';
 import { Logout } from './Icons';
 
 export const SECTIONS = [
@@ -9,7 +10,8 @@ export const SECTIONS = [
 ];
 
 export default function AppLayout() {
-  const { profile, isAdmin, logout } = useAuth();
+  const { profile, isAdmin, isSdr, isCloser, isTeamOnly, logout } = useAuth();
+  const teamHome = useTeamHome();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -20,13 +22,24 @@ export default function AppLayout() {
   return (
     <div className="shell">
       <header className="topbar">
-        <Link to="/" className="brand">Genesis</Link>
+        <Link to={isTeamOnly && teamHome ? teamHome : '/'} className="brand">Genesis</Link>
         <nav className="topbar__nav">
-          {SECTIONS.map((s) => (
-            <NavLink key={s.to} to={s.to} className="topbar__link">
-              {s.label}
+          {!isTeamOnly &&
+            SECTIONS.map((s) => (
+              <NavLink key={s.to} to={s.to} className="topbar__link">
+                {s.label}
+              </NavLink>
+            ))}
+          {isSdr && (
+            <NavLink to="/sdr" className="topbar__link">
+              Mis leads
             </NavLink>
-          ))}
+          )}
+          {isCloser && (
+            <NavLink to="/closer" className="topbar__link">
+              Mis llamadas
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink to="/admin" className="topbar__link topbar__link--admin">
               Admin

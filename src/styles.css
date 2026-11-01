@@ -945,3 +945,32 @@ html { scrollbar-gutter: stable; }
 @media (min-width: 961px) {
   .lp-main { width: 100%; max-width: max(640px, calc((100vh - 330px) * 16 / 9)); }
 }
+
+/* ---------- CRM: paneles de SDR y closer ---------- */
+.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+.filters .field--select { width: auto; min-width: 170px; }
+.two-col--top { align-items: start; margin-top: 0; }
+.stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.btn--wa { color: #9fd8a8; border-color: rgba(159, 216, 168, 0.35); white-space: nowrap; }
+.btn--wa:hover { background: rgba(159, 216, 168, 0.08); }
+.text-warn { color: #ff8a5c; }
+.kv { margin: 0; display: flex; flex-direction: column; }
+.kv__row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); font-size: 14px; }
+.kv__row:last-child { border-bottom: none; }
+.kv__row dt { color: var(--muted); }
+.kv__row dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.lead-actions { display: flex; flex-direction: column; gap: 18px; }
+.lead-actions .chips { margin-top: 8px; }
+.note-form { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.note-form .field { width: 100%; }
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.timeline__item { padding: 12px 0 12px 16px; border-left: 2px solid var(--line); position: relative; }
+.timeline__item::before { content: ''; position: absolute; left: -5px; top: 17px; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.timeline__item--estado::before, .timeline__item--agenda::before { background: var(--accent); }
+.timeline__item--resultado::before { background: #9fd8a8; }
+.timeline__item--nota::before { background: #e9b38f; }
+.timeline__meta { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.timeline__text { white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
+@media (max-width: 760px) {
+  .filters .field--select { flex: 1 1 100%; }
+}

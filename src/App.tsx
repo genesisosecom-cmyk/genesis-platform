@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import AmbientBackground from './components/AmbientBackground';
 import AppLayout from './components/AppLayout';
 import RequireAuth from './auth/RequireAuth';
@@ -23,6 +23,13 @@ import ContentAdminPage from './admin/ContentAdminPage';
 import ToolsAdminPage from './admin/ToolsAdminPage';
 import FinancePage from './admin/finance/FinancePage';
 import LeadsPage from './admin/leads/LeadsPage';
+import AdminLeadPage from './admin/leads/AdminLeadPage';
+import MetricsPage from './admin/leads/MetricsPage';
+import TeamPage from './admin/team/TeamPage';
+import SdrPage from './crm/SdrPage';
+import SdrLeadPage from './crm/SdrLeadPage';
+import CloserPage from './crm/CloserPage';
+import CallPage from './crm/CallPage';
 import FullScreenMessage from './components/FullScreenMessage';
 import { isSupabaseConfigured } from './lib/supabase';
 
@@ -53,16 +60,28 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<HubPage />} />
-          <Route path="avance" element={<ProgressPage />} />
-          <Route path="modulos" element={<ModulesPage />} />
-          <Route path="modulos/:moduleId" element={<ModuleDetailPage />} />
-          <Route path="modulos/:moduleId/:lessonId" element={<ModuleDetailPage />} />
-          <Route path="herramientas" element={<ToolboxPage />} />
+          <Route
+            element={
+              <RequireAuth area="campus">
+                <Outlet />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<HubPage />} />
+            <Route path="avance" element={<ProgressPage />} />
+            <Route path="modulos" element={<ModulesPage />} />
+            <Route path="modulos/:moduleId" element={<ModuleDetailPage />} />
+            <Route path="modulos/:moduleId/:lessonId" element={<ModuleDetailPage />} />
+            <Route path="herramientas" element={<ToolboxPage />} />
+          </Route>
+          <Route path="sdr" element={<RequireAuth area="sdr"><SdrPage /></RequireAuth>} />
+          <Route path="sdr/:leadLaunchId" element={<RequireAuth area="sdr"><SdrLeadPage /></RequireAuth>} />
+          <Route path="closer" element={<RequireAuth area="closer"><CloserPage /></RequireAuth>} />
+          <Route path="closer/:callId" element={<RequireAuth area="closer"><CallPage /></RequireAuth>} />
           <Route
             path="admin"
             element={
-              <RequireAuth admin>
+              <RequireAuth area="admin">
                 <AdminLayout />
               </RequireAuth>
             }
@@ -79,6 +98,9 @@ export default function App() {
             <Route path="clientes/:clientId" element={<ClientDetailPage />} />
             <Route path="finanzas" element={<FinancePage />} />
             <Route path="leads" element={<LeadsPage />} />
+            <Route path="leads/:leadLaunchId" element={<AdminLeadPage />} />
+            <Route path="metricas" element={<MetricsPage />} />
+            <Route path="equipo" element={<TeamPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
