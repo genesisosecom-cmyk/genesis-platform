@@ -96,7 +96,16 @@ Deno.serve(async (req) => {
   EdgeRuntime.waitUntil(
     admin
       .from('ingest_log')
-      .insert({ endpoint: event, secret, payload: body ?? { raw }, status, result, error, ms: Date.now() - started })
+      .insert({
+        endpoint: event,
+        secret,
+        payload: body ?? { raw },
+        status,
+        result,
+        error,
+        ms: Date.now() - started,
+        region: Deno.env.get('SB_REGION') ?? null,
+      })
       .then(({ error: logError }) => logError && console.error('ingest_log:', logError.message)),
   );
 

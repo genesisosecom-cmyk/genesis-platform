@@ -16,7 +16,7 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - No hace falta cuenta para responder.
 
 **Panel de superadmin** — `/admin` (solo usuarios con rol `superadmin`)
-- **Leads:** leads de la landing por lanzamiento (inversión, califica, versión, fuente, grupo, aplicación), visitas → optins por versión y por fuente, y los links de WhatsApp de los SDR.
+- **Leads, Métricas y Equipo:** leads de la landing por lanzamiento con filtros por SDR, closer y estado; métricas por versión, fuente, SDR y closer; y el equipo de ventas (ver abajo).
 - **Contenido:** crear, ordenar, publicar/ocultar y eliminar módulos y lecciones. Cada módulo se puede dividir en **secciones** (ej: "Búsqueda y validación de producto") con sus clases; en el campus la lista de clases se agrupa por sección. Cada lección lleva el link del video (YouTube no listado, Vimeo, Loom, Bunny o .mp4), duración, descripción y **recursos de la clase** (archivos descargables de hasta 50 MB o links, con título y descripción corta), con vista previa.
 - **Herramientas:** baúl de herramientas con archivos subidos (bucket privado `toolbox`, hasta 50 MB) o links externos; borrador/publicada y orden.
 - **Resumen:** usuarios activos, avance promedio, respuestas sin leer, cobrado en el mes, cuotas vencidas y próximos cobros.
@@ -59,16 +59,25 @@ La landing reenvía cada evento server-to-server a la Edge Function `ingest`:
 | `POST …/ingest/optin` | Crea o actualiza el lead (clave: email en minúsculas y/o teléfono solo dígitos) y lo suma al lanzamiento actual. Responde `{ ok, id, repetido }`. |
 | `POST …/ingest/visita` | Suma 1 visita por día, fuente y versión (`tracking.ab`). |
 | `POST …/ingest/grupo` | Marca que tocó "Entrar al grupo". Si el optin todavía no llegó, queda pendiente y se aplica cuando llega. |
-| `POST …/ingest/aplicacion` | Guarda la aplicación post-clase, asigna SDR (50/50 determinístico) y responde `{ ok, ruta, sdr, wa }`. |
+| `POST …/ingest/aplicacion` | Guarda la aplicación post-clase, asigna SDR si no tenía y responde `{ ok, ruta, sdr, wa }` (sin SDR: `sdr` vacío y el WhatsApp por defecto). |
 
 - URL base: `https://zanwrwysbmvgytfzymaz.supabase.co/functions/v1/ingest/optin`. Con el dominio del campus también funciona `https://CAMPUS/api/public/optin` (rewrite en `vercel.json`).
 - Deploy: `supabase functions deploy ingest --no-verify-jwt` y el secret `GENESIS_INGEST_SECRET` (`supabase secrets set GENESIS_INGEST_SECRET=…`). La landing lo manda en el header `X-Genesis-Secret`; por ahora, si no viene se acepta igual y queda registrado en `ingest_log`.
 - Toda la lógica está en las funciones de Postgres `ingest_*` (migración `20261031000000_leads.sql`), una llamada por evento.
-- Lanzamientos en la tabla `launches` (`is_current` marca a cuál se asignan los eventos). Los links de WhatsApp de los SDR se editan en Panel → Leads.
+- Lanzamientos en la tabla `launches` (`is_current` marca a cuál se asignan los eventos).
 - Prueba de punta a punta (borra sus datos al final):
   ```bash
   GENESIS_INGEST_SECRET=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/test-ingest.mjs https://zanwrwysbmvgytfzymaz.supabase.co/functions/v1/ingest/optin
   ```
+
+## Equipo de ventas: paneles de SDR y closer
+
+- **Equipo** (Admin → Equipo): cada persona tiene nombre, link de WhatsApp, usuario del campus (creado en Usuarios como Miembro) y los roles SDR y/o closer, cada uno activo, pausado o de baja. También se configura el WhatsApp por defecto.
+- **Reparto:** round-robin ponderado entre los SDR activos (peso 2 = el doble de leads). Los calificados (100 USD/día o más) se asignan en el optin; el resto, al aplicar. Sin SDR activos el lead queda sin asignar y /aplicacion devuelve el WhatsApp por defecto. Un lead asignado no cambia salvo que el admin lo reasigne (o reparta los de un SDR que se da de baja).
+- **Panel SDR** (`/sdr`): sus leads ordenados por prioridad (aplicaron y califican primero), WhatsApp, estado post-clase, notas, próxima tarea y agenda con closer.
+- **Panel closer** (`/closer`): llamadas de hoy, próximas y pasadas sin resultado. Al cerrar carga monto, cobrado, medio de pago y comprobante (bucket privado `receipts`); se crea el cliente en Clientes y pagos o se le suma el pago si ya existía con el mismo email o teléfono.
+- SDRs y closers ven solo su panel, no el campus. Leen únicamente sus leads (RLS) y todas las acciones pasan por las funciones `crm_*` de la base, que validan permisos y dejan el historial con autor y fecha.
+- **Admin → Leads** filtra por lanzamiento, SDR, closer y estado, reasigna y reparte los leads sin SDR. **Admin → Métricas** muestra visitas, optins, calificados, aplicaciones, agendas, ventas y cash collected por SDR y por closer.
 
 ## Seguridad
 

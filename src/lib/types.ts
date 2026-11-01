@@ -134,14 +134,24 @@ export interface Launch {
   created_at: string;
 }
 
+export type RepStatus = 'activo' | 'pausado' | 'baja';
+
 export interface SalesRep {
+  id: string;
   name: string;
-  kind: 'sdr' | 'closer';
   whatsapp_url: string;
-  assign_order: number;
-  active: boolean;
   profile_id: string | null;
+  /** null = no tiene el rol. */
+  sdr_status: RepStatus | null;
+  closer_status: RepStatus | null;
+  sdr_weight: number;
   created_at: string;
+}
+
+export interface CrmSettings {
+  id: boolean;
+  default_whatsapp_url: string;
+  updated_at: string;
 }
 
 export interface Lead {
@@ -149,7 +159,7 @@ export interface Lead {
   email: string | null;
   phone: string | null;
   full_name: string;
-  sdr: string | null;
+  sdr_id: string | null;
   possible_duplicate: boolean;
   created_at: string;
   updated_at: string;
@@ -177,9 +187,9 @@ export interface LeadLaunch {
   application_tracking: Record<string, string> | null;
   route: 'aplicado' | 'rechazado' | null;
   post_class_status: PostClassStatus | null;
-  closer: string | null;
+  closer_id: string | null;
+  next_action: string | null;
   next_action_at: string | null;
-  notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -190,4 +200,41 @@ export interface LandingVisit {
   source: string;
   variant: string;
   visits: number;
+}
+
+export interface LeadEvent {
+  id: string;
+  lead_id: string;
+  launch_id: string | null;
+  kind: string;
+  summary: string;
+  data: Record<string, unknown>;
+  created_by: string | null;
+  created_by_name: string | null;
+  created_at: string;
+}
+
+export type CallStatus = 'agendada' | 'realizada' | 'cancelada';
+
+export interface SalesCall {
+  id: string;
+  lead_launch_id: string;
+  closer_id: string | null;
+  scheduled_at: string;
+  scheduled_by: string | null;
+  scheduled_by_name: string | null;
+  sdr_note: string | null;
+  status: CallStatus;
+  result: 'no_cerro' | 'cerro' | null;
+  result_note: string | null;
+  amount_total: number | null;
+  amount_collected: number | null;
+  currency: string;
+  payment_method: string | null;
+  receipt_path: string | null;
+  client_id: string | null;
+  payment_id: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }

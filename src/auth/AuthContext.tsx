@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import type { Profile } from '../lib/types';
+import type { Profile, SalesRep } from '../lib/types';
 
 interface AuthContextValue {
   /** true mientras se recupera la sesión inicial o el perfil. */
@@ -9,6 +9,12 @@ interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   isAdmin: boolean;
+  /** Ficha del equipo de ventas vinculada al usuario (null si no es SDR ni closer). */
+  rep: SalesRep | null;
+  isSdr: boolean;
+  isCloser: boolean;
+  /** SDR o closer que no es admin: ve solo su panel, no el campus. */
+  isTeamOnly: boolean;
   /** Vuelve a leer el perfil (por ej. después de cambiar la contraseña temporal). */
   refreshProfile: () => void;
   login: (email: string, password: string) => Promise<void>;
@@ -18,10 +24,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Un rol pausado sigue trabajando lo suyo; dado de baja, no. */
+const working = (s: SalesRep['sdr_status']) => s === 'activo' || s === 'pausado';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [rep, setRep] = useState<SalesRep | null>(null);
   const [profileFor, setProfileFor] = useState<string | null>(null);
   const [profileTick, setProfileTick] = useState(0);
 
@@ -39,20 +49,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) {
       setProfile(null);
+      setRep(null);
       setProfileFor(null);
       return;
     }
     let cancelled = false;
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return;
-        setProfile(data as Profile | null);
-        setProfileFor(userId);
-      });
+    Promise.all([
+      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      supabase.from('sales_reps').select('*').eq('profile_id', userId).maybeSingle(),
+    ]).then(([p, r]) => {
+      if (cancelled) return;
+      setProfile(p.data as Profile | null);
+      setRep(r.data as SalesRep | null);
+      setProfileFor(userId);
+    });
     return () => {
       cancelled = true;
     };
@@ -82,18 +92,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loading = !sessionReady || (userId !== null && profileFor !== userId);
 
+  const isAdmin = Boolean(profile?.role === 'superadmin' && profile.active && !profile.must_change_password);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       loading,
       session,
       profile,
-      isAdmin: profile?.role === 'superadmin' && profile.active && !profile.must_change_password,
+      isAdmin,
+      rep,
+      isSdr: working(rep?.sdr_status ?? null),
+      isCloser: working(rep?.closer_status ?? null),
+      isTeamOnly: Boolean(rep) && !isAdmin,
       refreshProfile,
       login,
       logout,
       sendPasswordReset,
     }),
-    [loading, session, profile, refreshProfile, login, logout, sendPasswordReset],
+    [loading, session, profile, isAdmin, rep, refreshProfile, login, logout, sendPasswordReset],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
