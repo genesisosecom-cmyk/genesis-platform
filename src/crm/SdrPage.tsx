@@ -1,57 +1,59 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useAsync } from '../lib/useAsync';
-import { Kpi, State } from '../admin/ui';
-import { byPriority, fetchLaunches, fetchLeadRows, type LeadRow } from './api';
-import LeadTable, { searchText } from './LeadTable';
-import { isClosed } from './components';
+import { Kpi, Modal, State } from '../admin/ui';
+import { fmtMoney } from '../lib/format';
+import type { Launch } from '../lib/types';
+import {
+  fetchAgents,
+  fetchCalls,
+  fetchCommissions,
+  fetchLaunches,
+  fetchLaunchProgress,
+  fetchLeadRow,
+  fetchLeadRows,
+  fetchResources,
+  fetchSalesReps,
+  fetchSettings,
+  type CallRow,
+  type LeadRow,
+} from './api';
+import { byLevel, followupDue, inList, INVESTMENT_LEVELS, LISTS, periodRange, sdrReview, type ListKey } from './model';
+import LeadCard, { type CardContext } from './LeadCard';
+import { NewLeadModal, ResourcesModal } from './modals';
+import { CallCalendar, CommissionCards, LaunchGoal, realNumbers, ScopeToggle, Simulator } from './widgets';
 
-type Filter = 'abiertos' | 'hoy' | 'aplicaron' | 'califican' | 'sin_contactar' | 'agendados' | 'cerrados' | 'todos';
-
-const endOfToday = () => {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d.toISOString();
-};
-
-const FILTERS: Record<Filter, { label: string; test: (r: LeadRow) => boolean }> = {
-  abiertos: { label: 'Abiertos', test: (r) => !isClosed(r) },
-  hoy: { label: 'Tareas para hoy', test: (r) => Boolean(r.next_action_at && r.next_action_at <= endOfToday()) && !isClosed(r) },
-  aplicaron: { label: 'Aplicaron', test: (r) => r.route === 'aplicado' },
-  califican: { label: 'Califican', test: (r) => r.califica === true },
-  sin_contactar: { label: 'Sin contactar', test: (r) => !r.post_class_status || r.post_class_status === 'Nuevo lead' },
-  agendados: { label: 'Agendados', test: (r) => r.post_class_status === 'Agendado' },
-  cerrados: { label: 'Cerrados', test: isClosed },
-  todos: { label: 'Todos', test: () => true },
-};
+type Tab = 'leads' | 'resumen' | 'calendario';
 
 export default function SdrPage() {
-  const { rep, isSdr } = useAuth();
+  const { rep, isSdr, isAdmin } = useAuth();
   const launches = useAsync(fetchLaunches, []);
   const [picked, setPicked] = useState<string | null>(null);
-  const launchId = picked ?? launches.data?.find((l) => l.is_current)?.id ?? launches.data?.[0]?.id ?? null;
+  const launch = launches.data?.find((l) => l.id === picked) ?? launches.data?.find((l) => l.is_current) ?? launches.data?.[0] ?? null;
 
   return (
     <div className="fade-in">
       <header className="page__header">
         <span className="eyebrow">Panel SDR{rep && isSdr ? ` · ${rep.name}` : ''}</span>
-        <h1 className="page__title">Mis leads</h1>
+        <h1 className="page__title">Leads</h1>
       </header>
-      {!rep || !isSdr ? (
-        <p className="muted">Tu usuario no está cargado como SDR. Para ver los leads de todo el equipo, usá Admin → Leads.</p>
+      {!isSdr && !isAdmin ? (
+        <p className="muted">Tu usuario no está cargado como SDR.</p>
       ) : (
-        <State loading={launches.loading} error={launches.error} empty={!launchId}>
-          {launchId && (
-            <MyLeads
-              key={launchId}
-              sdrId={rep.id}
-              launchId={launchId}
+        <State loading={launches.loading} error={launches.error} empty={!launch}>
+          {launch && (
+            <SdrWorkspace
+              key={launch.id}
+              launch={launch}
+              me={isSdr ? rep!.id : null}
+              isAdmin={isAdmin}
               picker={
-                <select className="field field--select" value={launchId} onChange={(e) => setPicked(e.target.value)}>
-                  {launches.data!.map((l) => (
-                    <option key={l.id} value={l.id}>{l.name}{l.is_current ? ' (actual)' : ''}</option>
-                  ))}
-                </select>
+                launches.data!.length > 1 && (
+                  <select className="field field--select" value={launch.id} onChange={(e) => setPicked(e.target.value)}>
+                    {launches.data!.map((l) => <option key={l.id} value={l.id}>{l.name}{l.is_current ? ' (actual)' : ''}</option>)}
+                  </select>
+                )
               }
             />
           )}
@@ -61,39 +63,238 @@ export default function SdrPage() {
   );
 }
 
-function MyLeads({ sdrId, launchId, picker }: { sdrId: string; launchId: string; picker: ReactNode }) {
-  const { data, loading, error, reload } = useAsync(() => fetchLeadRows(launchId, sdrId), [launchId, sdrId]);
-  const [filter, setFilter] = useState<Filter>('abiertos');
+async function load(launchId: string) {
+  const [rows, reps, agents, resources, calls, progress, settings] = await Promise.all([
+    fetchLeadRows(launchId),
+    fetchSalesReps(),
+    fetchAgents(),
+    fetchResources(),
+    fetchCalls({ launchId }),
+    fetchLaunchProgress(launchId),
+    fetchSettings().catch(() => null),
+  ]);
+  return { rows, reps, agents, resources, calls, progress, settings };
+}
+
+function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: string | null; isAdmin: boolean; picker: React.ReactNode }) {
+  const { leadLaunchId } = useParams();
+  const { data, loading, error, reload } = useAsync(() => load(launch.id), [launch.id]);
+  const [patched, setPatched] = useState<Record<string, LeadRow>>({});
+  const [tab, setTab] = useState<Tab>('leads');
+  const [list, setList] = useState<ListKey>(me ? 'mios' : 'bolsa');
+  const [scope, setScope] = useState<'mine' | 'team'>(me ? 'mine' : 'team');
   const [query, setQuery] = useState('');
-  const rows = [...(data ?? [])].sort(byPriority);
+  const [creating, setCreating] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [callOpen, setCallOpen] = useState<CallRow | null>(null);
+
+  useEffect(() => setPatched({}), [data]);
+
+  const rows = useMemo(() => (data?.rows ?? []).map((r) => patched[r.id] ?? r), [data, patched]);
+  const reps = data?.reps ?? [];
+  const who = scope === 'mine' ? me : null;
+
+  const ctx: CardContext = {
+    reps,
+    agents: data?.agents ?? [],
+    launchStartsAt: launch.starts_at,
+    me,
+    isAdmin,
+    refresh: async (id) => {
+      const row = await fetchLeadRow(id);
+      setPatched((p) => ({ ...p, [id]: row }));
+    },
+  };
+
   const q = query.trim().toLowerCase();
-  const filtered = rows.filter((r) => FILTERS[filter].test(r) && (!q || searchText(r).includes(q)));
+  const matches = (r: LeadRow) => {
+    if (!q) return true;
+    const owner = reps.find((x) => x.id === r.lead.sdr_id)?.name ?? 'sin sdr';
+    return `${r.lead.full_name} ${r.lead.email ?? ''} ${r.lead.phone ?? ''} ${r.inversion_meta ?? ''} ${owner}`.toLowerCase().includes(q);
+  };
+  const counts = Object.fromEntries(LISTS.map((x) => [x.key, rows.filter((r) => inList(x.key, r, who)).length])) as Record<ListKey, number>;
+  const visible = rows.filter((r) => inList(list, r, who) && matches(r));
+  // Con búsqueda, busca en todas las listas.
+  const searchHits = q ? rows.filter(matches) : [];
+  const review = me ? sdrReview(rows, me) : [];
+  const dueCount = rows.filter((r) => (!who || r.lead.sdr_id === who) && followupDue(r)).length;
+  const focused = leadLaunchId ? rows.find((r) => r.id === leadLaunchId) : null;
 
   return (
     <>
-      <div className="kpis kpis--4">
-        <Kpi label="Asignados" value={rows.length} />
-        <Kpi label="Aplicaron" value={rows.filter(FILTERS.aplicaron.test).length} tone="ok" />
-        <Kpi label="Tareas para hoy" value={rows.filter(FILTERS.hoy.test).length} tone={rows.some(FILTERS.hoy.test) ? 'warn' : undefined} />
-        <Kpi label="Agendados" value={rows.filter(FILTERS.agendados.test).length} />
-      </div>
-      <div className="toolbar">
-        {picker}
-        <div className="toolbar__right">
-          <input className="field field--search" type="search" placeholder="Buscar lead…" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <button className="btn btn--ghost" onClick={reload}>Actualizar</button>
-        </div>
-      </div>
-      <div className="chips" style={{ marginBottom: 20 }}>
-        {(Object.keys(FILTERS) as Filter[]).map((f) => (
-          <button key={f} className={`chip${filter === f ? ' is-active' : ''}`} onClick={() => setFilter(f)}>
-            {FILTERS[f].label} <span className="muted">{rows.filter(FILTERS[f].test).length}</span>
+      <nav className="tabs">
+        {(['leads', 'resumen', 'calendario'] as Tab[]).map((t) => (
+          <button key={t} type="button" className={`tabs__link tabs__btn${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
+            {t === 'leads' ? 'Leads' : t === 'resumen' ? 'Resumen' : 'Calendario'}
           </button>
         ))}
-      </div>
-      <State loading={loading} error={error} empty={!filtered.length}>
-        <LeadTable rows={filtered} linkTo={(r) => `/sdr/${r.id}`} />
+      </nav>
+
+      <State loading={loading} error={error}>
+        {data && <LaunchGoal launch={launch} progress={data.progress} />}
+
+        {tab === 'leads' && data && (
+          <>
+            <div className="toolbar">
+              <div className="filters" style={{ marginBottom: 0 }}>
+                {picker}
+                {me && <ScopeToggle value={scope} onChange={setScope} />}
+              </div>
+              <div className="toolbar__right">
+                <input className="field field--search" type="search" placeholder="Nombre, mail, teléfono, inversión o SDR…" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <button className="btn btn--ghost" onClick={() => setResourcesOpen(true)}>Recursos</button>
+                <button className="btn btn--primary" onClick={() => setCreating(true)}>+ Nuevo lead</button>
+              </div>
+            </div>
+
+            {focused && (
+              <div className="stack" style={{ marginBottom: 20 }}>
+                <LeadCard row={focused} ctx={ctx} defaultOpen />
+              </div>
+            )}
+
+            {review.length > 0 && (
+              <section className="glass panel review">
+                <button type="button" className="panel__head link--btn" onClick={() => setReviewOpen((o) => !o)}>
+                  <h2 className="panel__title">Para revisar · {review.length}</h2>
+                  <span className="muted">{reviewOpen ? 'Ocultar' : 'Ver'}</span>
+                </button>
+                {reviewOpen && (
+                  <ul className="mini-list">
+                    {review.map((r) => <li key={r.id}><span className="mini-list__item">{r.text}</span></li>)}
+                  </ul>
+                )}
+              </section>
+            )}
+
+            {q ? (
+              <>
+                <p className="muted">{searchHits.length} resultado(s) en todas las listas.</p>
+                <div className="stack">{searchHits.sort(byLevel).slice(0, 100).map((r) => <LeadCard key={r.id} row={r} ctx={ctx} />)}</div>
+              </>
+            ) : (
+              <>
+                <div className="ltabs">
+                  {LISTS.filter((x) => !x.more).map((x) => (
+                    <button key={x.key} type="button" className={`chip${list === x.key ? ' is-active' : ''}`} onClick={() => setList(x.key)}>
+                      {x.label} <span className="muted">{counts[x.key]}</span>
+                      {x.key === 'seguimientos' && dueCount > 0 && <span className="dot" title={`${dueCount} para hoy`} />}
+                    </button>
+                  ))}
+                  <span className="ltabs__more muted">Otras listas:</span>
+                  {LISTS.filter((x) => x.more).map((x) => (
+                    <button key={x.key} type="button" className={`chip chip--sm${list === x.key ? ' is-active' : ''}`} onClick={() => setList(x.key)}>
+                      {x.label} <span className="muted">{counts[x.key]}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="muted">{LISTS.find((x) => x.key === list)?.hint}</p>
+                <LeadGroups rows={visible} list={list} ctx={ctx} />
+              </>
+            )}
+          </>
+        )}
+
+        {tab === 'resumen' && data && <SdrSummary rows={rows} calls={data.calls} me={me} pct={Number(data.settings?.sdr_commission_pct ?? 3)} />}
+
+        {tab === 'calendario' && data && (
+          <>
+            {me && <div className="filters"><ScopeToggle value={scope} onChange={setScope} /></div>}
+            <CallCalendar calls={data.calls.filter((c) => !who || c.sdr_id === who)} reps={reps} showCloser onOpen={setCallOpen} />
+          </>
+        )}
       </State>
+
+      {callOpen && (
+        <Modal title="Lead de la call" onClose={() => setCallOpen(null)} wide>
+          <LeadCard row={rows.find((r) => r.id === callOpen.lead_launch_id) ?? callOpen.lead_launch} ctx={ctx} defaultOpen />
+        </Modal>
+      )}
+      {creating && (
+        <NewLeadModal
+          closers={reps.filter((r) => r.closer_status === 'activo')}
+          canAssign={Boolean(me)}
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            reload();
+          }}
+        />
+      )}
+      {resourcesOpen && <ResourcesModal resources={data?.resources ?? []} role="sdr" onClose={() => setResourcesOpen(false)} />}
+    </>
+  );
+}
+
+/** Mis leads se agrupa por nivel de inversión (de mayor a menor); el resto, lista ordenada. */
+function LeadGroups({ rows, list, ctx }: { rows: LeadRow[]; list: ListKey; ctx: CardContext }) {
+  const [limit, setLimit] = useState(60);
+  if (!rows.length) return <div className="state muted">No hay leads en esta lista.</div>;
+  if (list === 'seguimientos') {
+    const sorted = [...rows].sort((a, b) => (a.next_followup_at ?? '9999').localeCompare(b.next_followup_at ?? '9999'));
+    return <div className="stack">{sorted.slice(0, limit).map((r) => <LeadCard key={r.id} row={r} ctx={ctx} />)}<More n={sorted.length} limit={limit} setLimit={setLimit} /></div>;
+  }
+  if (list !== 'mios' && list !== 'bolsa') {
+    const sorted = [...rows].sort(byLevel);
+    return <div className="stack">{sorted.slice(0, limit).map((r) => <LeadCard key={r.id} row={r} ctx={ctx} />)}<More n={sorted.length} limit={limit} setLimit={setLimit} /></div>;
+  }
+  const groups = [...INVESTMENT_LEVELS, 'Sin dato'].map((lvl) => ({
+    lvl,
+    items: rows.filter((r) => (r.inversion_meta ?? 'Sin dato') === lvl || (lvl === 'Sin dato' && r.inversion_meta && !INVESTMENT_LEVELS.includes(r.inversion_meta))).sort(byLevel),
+  }));
+  return (
+    <div className="stack">
+      {groups.filter((g) => g.items.length).map((g) => (
+        <section key={g.lvl}>
+          <h3 className="section-title section-title--sm">{g.lvl} · {g.items.length}</h3>
+          <div className="stack">{g.items.slice(0, limit).map((r) => <LeadCard key={r.id} row={r} ctx={ctx} />)}</div>
+        </section>
+      ))}
+      <More n={Math.max(...groups.map((g) => g.items.length))} limit={limit} setLimit={setLimit} />
+    </div>
+  );
+}
+
+function More({ n, limit, setLimit }: { n: number; limit: number; setLimit: (n: number) => void }) {
+  if (n <= limit) return null;
+  return <button className="btn btn--ghost" onClick={() => setLimit(limit + 60)}>Ver más ({n - limit})</button>;
+}
+
+function SdrSummary({ rows, calls, me, pct }: { rows: LeadRow[]; calls: CallRow[]; me: string | null; pct: number }) {
+  const [period, setPeriod] = useState<'mes' | 'todo'>('mes');
+  const range = periodRange(period);
+  const commissions = useAsync(() => fetchCommissions(range.from, range.to), [period]);
+  const mine = rows.filter((r) => !me || r.lead.sdr_id === me);
+  const myCalls = calls.filter((c) => !me || c.sdr_id === me);
+  const live = myCalls.filter((c) => c.status !== 'cancelada');
+  const contacted = mine.filter((r) => r.contact_attempts > 0);
+  const answered = mine.filter((r) => r.answered);
+  const booked = mine.filter((r) => r.agendo === true);
+  const shows = live.filter((c) => c.attendance === 'se_presento');
+  const sales = live.filter((c) => c.result === 'cerro');
+  const real = realNumbers({ dials: mine.reduce((s, r) => s + r.contact_attempts, 0), answered: answered.length, contacted: contacted.length, booked: booked.length, calls: live });
+
+  return (
+    <>
+      <div className="filters">
+        <div className="seg">
+          <button type="button" className={`seg__opt${period === 'mes' ? ' is-on' : ''}`} onClick={() => setPeriod('mes')}>Este mes</button>
+          <button type="button" className={`seg__opt${period === 'todo' ? ' is-on' : ''}`} onClick={() => setPeriod('todo')}>Todo</button>
+        </div>
+      </div>
+      <State loading={commissions.loading} error={commissions.error}>
+        <CommissionCards rows={(commissions.data ?? []).filter((c) => c.role === 'sdr' && (!me || c.rep_id === me))} pct={pct} />
+      </State>
+      <h2 className="section-title">Resultados de tus agendas</h2>
+      <div className="kpis kpis--4">
+        <Kpi label="Leads" value={mine.length} hint={`${contacted.length} contactados`} />
+        <Kpi label="Contestaron" value={answered.length} hint={contacted.length ? `${Math.round((answered.length / contacted.length) * 100)}% de los contactados` : undefined} />
+        <Kpi label="Agendaste" value={booked.length} />
+        <Kpi label="Se presentaron" value={shows.length} hint={live.filter((c) => c.attendance).length ? `${Math.round((shows.length / live.filter((c) => c.attendance).length) * 100)}% show-up` : undefined} />
+        <Kpi label="Ventas" value={sales.length} tone="ok" hint={fmtMoney(sales.reduce((s, c) => s + Number(c.amount_total ?? 0), 0), 'USD')} />
+      </div>
+      <Simulator mode="sdr" real={real} pct={pct} />
     </>
   );
 }

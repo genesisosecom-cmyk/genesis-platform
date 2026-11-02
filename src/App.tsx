@@ -26,10 +26,10 @@ import LeadsPage from './admin/leads/LeadsPage';
 import AdminLeadPage from './admin/leads/AdminLeadPage';
 import MetricsPage from './admin/leads/MetricsPage';
 import TeamPage from './admin/team/TeamPage';
+import SalesPage from './admin/sales/SalesPage';
+import CrmConfigPage from './admin/sales/CrmConfigPage';
 import SdrPage from './crm/SdrPage';
-import SdrLeadPage from './crm/SdrLeadPage';
 import CloserPage from './crm/CloserPage';
-import CallPage from './crm/CallPage';
 import FullScreenMessage from './components/FullScreenMessage';
 import { isSupabaseConfigured } from './lib/supabase';
 
@@ -75,9 +75,9 @@ export default function App() {
             <Route path="herramientas" element={<ToolboxPage />} />
           </Route>
           <Route path="sdr" element={<RequireAuth area="sdr"><SdrPage /></RequireAuth>} />
-          <Route path="sdr/:leadLaunchId" element={<RequireAuth area="sdr"><SdrLeadPage /></RequireAuth>} />
+          <Route path="sdr/:leadLaunchId" element={<RequireAuth area="sdr"><SdrPage /></RequireAuth>} />
           <Route path="closer" element={<RequireAuth area="closer"><CloserPage /></RequireAuth>} />
-          <Route path="closer/:callId" element={<RequireAuth area="closer"><CallPage /></RequireAuth>} />
+          <Route path="closer/:callId" element={<RequireAuth area="closer"><CloserPage /></RequireAuth>} />
           <Route
             path="admin"
             element={
@@ -101,6 +101,8 @@ export default function App() {
             <Route path="leads/:leadLaunchId" element={<AdminLeadPage />} />
             <Route path="metricas" element={<MetricsPage />} />
             <Route path="equipo" element={<TeamPage />} />
+            <Route path="ventas" element={<SalesPage />} />
+            <Route path="crm" element={<CrmConfigPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

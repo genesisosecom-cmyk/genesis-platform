@@ -9,7 +9,6 @@ export default function AdminLeadPage() {
   return (
     <LeadDetail
       leadLaunchId={leadLaunchId}
-      mode="admin"
       back={{ to: '/admin/leads', label: 'Leads' }}
       extra={({ row, reps, reload }) => <ReassignSdr row={row} reps={reps} onDone={reload} />}
     />

@@ -32,12 +32,12 @@ export default function AppLayout() {
             ))}
           {isSdr && (
             <NavLink to="/sdr" className="topbar__link">
-              Mis leads
+              Leads
             </NavLink>
           )}
           {isCloser && (
             <NavLink to="/closer" className="topbar__link">
-              Mis llamadas
+              Calls
             </NavLink>
           )}
           {isAdmin && (
