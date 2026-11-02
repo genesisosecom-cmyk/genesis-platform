@@ -58,7 +58,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <State loading={loading} error={error} empty={!filtered.length}>
+      <State loading={loading} error={error} empty={!filtered.length} emptyState={clients.length ? { title: 'Ningún cliente coincide', text: 'Probá con otro filtro o búsqueda.' } : { title: 'Todavía no hay clientes', text: 'Cargá clientes con su plan de cuotas o se crean solos cuando el closer cierra una venta.', action: { label: 'Nuevo cliente', onClick: () => setCreating(true) } }}>
         <div className="glass table-wrap">
           <table className="table">
             <thead>

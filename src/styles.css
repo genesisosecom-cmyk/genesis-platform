@@ -1065,3 +1065,165 @@ html { scrollbar-gutter: stable; }
   .lcard__head { grid-template-columns: 1fr; }
   .lcard__btns { grid-column: 1; grid-row: auto; justify-content: flex-start; }
 }
+
+/* =====================================================================
+   Panel de admin: app shell con barra lateral de íconos, lienzo oscuro
+   con resplandor azul desde abajo y estados vacíos con ícono brillante.
+   El tema (colores) aplica solo dentro de .admin.
+   ===================================================================== */
+.admin {
+  --accent: #9cc3ef;
+  --accent-soft: rgba(156, 195, 239, 0.12);
+  --accent-line: rgba(156, 195, 239, 0.38);
+  --bg: #0b0b0c;
+  --text: #f2f4f7;
+  --muted: rgba(242, 244, 247, 0.5);
+  --line: rgba(255, 255, 255, 0.07);
+  --glass: rgba(20, 21, 24, 0.62);
+  --glass-hover: rgba(28, 30, 34, 0.75);
+  --rail-w: 60px;
+  position: relative;
+  z-index: 0;
+  min-height: 100vh;
+  display: flex;
+  background: #121213;
+  color: var(--text);
+}
+.admin--open { --rail-w: 232px; }
+.admin ::selection { background: var(--accent); color: #0b0b0c; }
+
+/* ---------- Barra lateral ---------- */
+.rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: var(--rail-w);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 10px 10px 14px;
+  background: #0d0d0e;
+  border-right: 1px solid var(--line);
+  transition: width 0.3s var(--ease);
+  overflow: hidden;
+  z-index: 30;
+}
+.rail__sep { height: 1px; background: var(--line); margin: 6px 2px; flex: none; }
+.rail__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: rgba(242, 244, 247, 0.55);
+  background: none;
+  border: none;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
+  flex: none;
+}
+.rail__item svg { flex: none; }
+.rail__item:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.rail__item.active { background: #f4f5f7; color: #0b0b0c; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 6px 18px rgba(156, 195, 239, 0.18); }
+.rail__label { opacity: 0; transition: opacity 0.2s; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+.admin--open .rail__label { opacity: 1; }
+.rail__toggle { color: var(--text); }
+.rail__brand { display: flex; align-items: center; gap: 12px; padding: 4px 3px; margin-bottom: 10px; flex: none; }
+.rail__logo {
+  width: 34px; height: 34px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 9px;
+  font-weight: 600; color: #fff;
+  background: linear-gradient(145deg, #2f6fd6, #173f8f);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 4px 14px rgba(47, 111, 214, 0.45);
+}
+.rail__brand-name { display: flex; flex-direction: column; line-height: 1.15; font-weight: 500; }
+.rail__brand-name small { color: var(--muted); font-weight: 400; font-size: 11px; }
+.rail__nav { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding-top: 4px; }
+.rail__nav::-webkit-scrollbar { display: none; }
+.rail__group { display: flex; flex-direction: column; gap: 2px; }
+.rail__group-title { height: 0; overflow: hidden; opacity: 0; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); padding: 0 10px; transition: opacity 0.2s, height 0.2s; }
+.admin--open .rail__group-title { height: 18px; opacity: 1; }
+.admin--open .rail__nav { gap: 16px; }
+.rail__bottom { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 10px; flex: none; }
+.rail__me { position: relative; }
+.rail__avatar-btn { width: 100%; padding: 0 6px; }
+.rail__avatar {
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  font-size: 12px;
+  color: var(--text);
+  background: linear-gradient(145deg, #3a3d44, #1c1d21);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.rail__who { color: var(--text); }
+.rail__menu { position: fixed; left: 12px; bottom: 64px; min-width: 220px; padding: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 40; }
+.rail__menu-email { font-size: 12px; padding: 2px 6px; overflow: hidden; text-overflow: ellipsis; }
+.rail__menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 6px; border-radius: 8px; background: none; border: none; text-align: left; }
+.rail__menu-item:hover { background: rgba(255, 255, 255, 0.06); }
+.rail__scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 25; }
+
+/* ---------- Lienzo ---------- */
+.admin__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  /* Resplandor azul que sube desde abajo, como en el diseño. */
+  background:
+    radial-gradient(60% 48% at 50% 112%, rgba(176, 210, 240, 0.78) 0%, rgba(96, 146, 196, 0.42) 30%, rgba(38, 72, 110, 0.16) 58%, rgba(20, 40, 64, 0) 78%) fixed,
+    linear-gradient(180deg, #0a0a0b 0%, #0b0c0e 60%, #0c1016 100%) fixed;
+}
+.admin__top { display: flex; align-items: center; gap: 14px; padding: 28px clamp(18px, 3vw, 40px) 0; }
+.admin__title { font-size: clamp(24px, 3vw, 32px); font-weight: 300; letter-spacing: -0.02em; margin-top: 4px; }
+.admin__burger { display: none; }
+.admin__content { padding: 24px clamp(18px, 3vw, 40px) 64px; max-width: 1440px; }
+/* Los paneles SDR/closer traen su propio encabezado: dentro del admin manda el del shell. */
+.admin__content .page__header { display: none; }
+
+/* ---------- Controles con el estilo del diseño ---------- */
+.admin .btn--primary,
+.btn--pill {
+  background: #f4f5f7;
+  border-color: #f4f5f7;
+  color: #0b0b0c;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.admin .btn--primary:hover,
+.btn--pill:hover { filter: none; background: #fff; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08); }
+.btn--pill { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: 1px solid #f4f5f7; font-size: 14px; }
+.admin .btn { border-radius: 999px; }
+.admin .btn--sm { border-radius: 999px; }
+.admin .glass { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.admin .kpi--ok .kpi__value { color: #b9d6f5; }
+.admin .table__row:hover { background: rgba(156, 195, 239, 0.06); }
+.admin .tabs__link.active, .admin .chip.is-active { color: var(--text); }
+
+/* ---------- Estado vacío ---------- */
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; padding: clamp(48px, 10vh, 110px) 16px; }
+.empty__tile {
+  width: 124px; height: 124px;
+  display: grid; place-items: center;
+  border-radius: 28px;
+  color: #dbe8f8;
+  background: radial-gradient(circle at 50% 40%, rgba(40, 48, 62, 0.9), rgba(12, 13, 16, 0.95) 70%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6) inset, 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 60px rgba(120, 170, 230, 0.12);
+}
+.empty__tile svg { width: 68px; height: 68px; filter: drop-shadow(0 0 6px rgba(150, 195, 255, 0.85)) drop-shadow(0 0 18px rgba(110, 160, 240, 0.5)); }
+.empty__title { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; }
+.empty__text { max-width: 360px; color: rgba(242, 244, 247, 0.6); font-size: 14px; line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .admin { --rail-w: 0px; }
+  .rail { position: fixed; left: 0; top: 0; width: 248px; transform: translateX(-100%); transition: transform 0.3s var(--ease); }
+  .admin--mobile-open .rail { transform: none; }
+  .admin--mobile-open .rail__label, .admin--mobile-open .rail__group-title { opacity: 1; }
+  .admin--mobile-open .rail__group-title { height: 18px; }
+  .admin__burger { display: inline-grid; }
+  .admin__top { padding-top: 18px; }
+}

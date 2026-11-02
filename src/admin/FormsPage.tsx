@@ -33,7 +33,7 @@ export default function FormsPage() {
         <p className="muted">Mandale el link al cliente antes de la llamada. No necesita cuenta para responder.</p>
         <button className="btn btn--primary" onClick={() => setEditing('new')}>+ Nuevo formulario</button>
       </div>
-      <State loading={loading} error={error} empty={!forms.length}>
+      <State loading={loading} error={error} empty={!forms.length} emptyState={{ title: 'Todavía no hay formularios', text: 'Creá el pre-clase o formularios personalizados y compartí el link.', action: { label: 'Nuevo formulario', onClick: () => setEditing('new') } }}>
         <div className="grid">
           {forms.map((f) => {
             const rs = responses.filter((r) => r.form_id === f.id);

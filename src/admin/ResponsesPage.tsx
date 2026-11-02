@@ -72,7 +72,7 @@ export default function ResponsesPage() {
         </div>
       </div>
 
-      <State loading={loading} error={error} empty={!rows.length}>
+      <State loading={loading} error={error} empty={!rows.length} emptyState={{ title: 'Sin respuestas', text: 'Acá llegan las respuestas de los formularios pre-clase.' }}>
         <div className="glass table-wrap">
           <table className="table">
             <thead>

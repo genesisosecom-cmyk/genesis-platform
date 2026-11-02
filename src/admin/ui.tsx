@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Orbit } from '../components/Icons';
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -52,9 +53,32 @@ export function Pill({ tone, children }: { tone: 'ok' | 'warn' | 'muted' | 'acce
   return <span className={`pill pill--${tone}`}>{children}</span>;
 }
 
-export function State({ loading, error, empty, children }: { loading: boolean; error: string | null; empty?: boolean; children: ReactNode }) {
+/** Estado vacío: ícono con brillo, título, acción opcional y texto de ayuda. */
+export function EmptyState({ title = 'Todavía no hay datos', text, action }: { title?: string; text?: ReactNode; action?: { label: string; onClick: () => void } }) {
+  return (
+    <div className="empty fade-in">
+      <div className="empty__tile" aria-hidden="true"><Orbit /></div>
+      <h2 className="empty__title">{title}</h2>
+      {action && (
+        <button type="button" className="btn btn--pill" onClick={action.onClick}>
+          <span aria-hidden="true">+</span> {action.label}
+        </button>
+      )}
+      {text && <p className="empty__text">{text}</p>}
+    </div>
+  );
+}
+
+export function State({ loading, error, empty, emptyState, children }: {
+  loading: boolean;
+  error: string | null;
+  empty?: boolean;
+  /** Título, texto y acción del estado vacío. */
+  emptyState?: Parameters<typeof EmptyState>[0];
+  children: ReactNode;
+}) {
   if (loading) return <div className="state"><span className="spinner" /></div>;
   if (error) return <div className="state state--error">Error: {error}</div>;
-  if (empty) return <div className="state muted">Todavía no hay datos.</div>;
+  if (empty) return <EmptyState {...emptyState} />;
   return <>{children}</>;
 }

@@ -24,7 +24,7 @@ export default function AgendaPage() {
         <button className="btn btn--primary" onClick={() => setEditing('new')}>+ Nueva clase</button>
       </div>
 
-      <State loading={loading} error={error} empty={!slots.length}>
+      <State loading={loading} error={error} empty={!slots.length} emptyState={{ title: 'La agenda está vacía', text: 'Cargá las clases grupales semanales y los 1:1 a pedido de cada programa.', action: { label: 'Nueva clase', onClick: () => setEditing('new') } }}>
         <div className="glass table-wrap">
           <table className="table">
             <thead>
