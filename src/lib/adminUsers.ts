@@ -4,7 +4,6 @@ export interface TempCredentials {
   id: string;
   email: string;
   password: string;
-  expires_at: string;
 }
 
 /** Llama a la Edge Function `admin-users` y devuelve el mensaje de error del servidor si falla. */
