@@ -4,9 +4,8 @@
 //
 // Acciones de superadmin: create, reset_temp_password, delete.
 // Acción del propio usuario: change_temp_password (primer ingreso).
+// Las contraseñas temporales no vencen: valen hasta que el usuario elige la suya.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-
-const TEMP_PASSWORD_MINUTES = 10;
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -24,8 +23,6 @@ function tempPassword() {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
 }
 
-const expiresAt = () => new Date(Date.now() + TEMP_PASSWORD_MINUTES * 60_000).toISOString();
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Método no permitido' }, 405);
@@ -40,7 +37,7 @@ Deno.serve(async (req) => {
 
   const { data: me } = await admin
     .from('profiles')
-    .select('role, active, must_change_password, temp_password_expires_at')
+    .select('role, active, must_change_password')
     .eq('id', caller.user.id)
     .single();
   if (!me) return json({ error: 'Perfil no encontrado' }, 403);
@@ -51,9 +48,6 @@ Deno.serve(async (req) => {
   if (body.action === 'change_temp_password') {
     const password = String(body.password ?? '');
     if (!me.must_change_password) return json({ error: 'No tenés una contraseña temporal pendiente' }, 400);
-    if (!me.temp_password_expires_at || new Date(me.temp_password_expires_at) < new Date()) {
-      return json({ error: 'La contraseña temporal venció. Pedile una nueva al administrador.' }, 400);
-    }
     if (password.length < 8) return json({ error: 'La contraseña debe tener al menos 8 caracteres' }, 400);
     const { error } = await admin.auth.admin.updateUserById(caller.user.id, { password });
     if (error) return json({ error: error.message }, 400);
@@ -82,13 +76,12 @@ Deno.serve(async (req) => {
       const exists = /already|registered|exists/i.test(error.message);
       return json({ error: exists ? 'Ya existe un usuario con ese email' : error.message }, 400);
     }
-    const expires = expiresAt();
     const role = body.role === 'superadmin' ? 'superadmin' : 'member';
     await admin
       .from('profiles')
-      .update({ role, must_change_password: true, temp_password_expires_at: expires })
+      .update({ role, must_change_password: true, temp_password_expires_at: null })
       .eq('id', data.user.id);
-    return json({ id: data.user.id, email, password, expires_at: expires });
+    return json({ id: data.user.id, email, password });
   }
 
   if (body.action === 'reset_temp_password') {
@@ -97,12 +90,11 @@ Deno.serve(async (req) => {
     const password = tempPassword();
     const { data, error } = await admin.auth.admin.updateUserById(userId, { password });
     if (error) return json({ error: error.message }, 400);
-    const expires = expiresAt();
     await admin
       .from('profiles')
-      .update({ must_change_password: true, temp_password_expires_at: expires })
+      .update({ must_change_password: true, temp_password_expires_at: null })
       .eq('id', userId);
-    return json({ id: userId, email: data.user.email, password, expires_at: expires });
+    return json({ id: userId, email: data.user.email, password });
   }
 
   if (body.action === 'delete') {

@@ -10,7 +10,6 @@ import ProgressBar from '../components/ProgressBar';
 import { fmtDate, fmtDateTime, relativeTime } from '../lib/format';
 import type { Profile } from '../lib/types';
 import { adminUsers, type TempCredentials } from '../lib/adminUsers';
-import { mmss, TEMP_PASSWORD_SECONDS, useCountdown } from '../lib/useCountdown';
 import { useContent } from '../content/ContentContext';
 
 const load = () => Promise.all([fetchProfiles(), fetchAllProgress(), fetchResponses(), fetchClients(), fetchForms()]);
@@ -91,19 +90,15 @@ export default function UsersPage() {
 
 function StatusPill({ profile: p }: { profile: Profile }) {
   if (!p.active) return <Pill tone="muted">Sin acceso</Pill>;
-  if (p.must_change_password) {
-    const valid = p.temp_password_expires_at && new Date(p.temp_password_expires_at) > new Date();
-    return valid ? <Pill tone="accent">Clave temporal</Pill> : <Pill tone="warn">Clave vencida</Pill>;
-  }
+  if (p.must_change_password) return <Pill tone="accent">Clave temporal</Pill>;
   return <Pill tone="ok">Activo</Pill>;
 }
 
-/** Muestra el email y la contraseña temporal con botón de copiar y cuenta regresiva. */
+/** Muestra el email y la contraseña temporal con botón de copiar. */
 export function CredentialsCard({ creds, name }: { creds: TempCredentials; name?: string }) {
-  const left = useCountdown(creds.expires_at, TEMP_PASSWORD_SECONDS);
   const [copied, setCopied] = useState(false);
   const url = window.location.origin;
-  const text = `¡Hola${name ? ` ${name.split(' ')[0]}` : ''}! Ya tenés acceso a Genesis.\n\nIngresá en: ${url}\nEmail: ${creds.email}\nContraseña temporal: ${creds.password}\n\nLa contraseña vence en 10 minutos. Al ingresar te va a pedir que elijas una nueva.`;
+  const text = `¡Hola${name ? ` ${name.split(' ')[0]}` : ''}! Ya tenés acceso a Genesis.\n\nIngresá en: ${url}\nEmail: ${creds.email}\nContraseña temporal: ${creds.password}\n\nAl ingresar te va a pedir que elijas una contraseña nueva.`;
 
   const copy = async () => {
     await navigator.clipboard.writeText(text);
@@ -119,9 +114,9 @@ export function CredentialsCard({ creds, name }: { creds: TempCredentials; name?
         <dt>Contraseña</dt><dd>{creds.password}</dd>
       </dl>
       <p className="creds__timer">
-        {left > 0 ? <>Vence en <strong>{mmss(left)}</strong>. Al ingresar se le pide elegir una contraseña nueva.</> : <strong>La contraseña temporal venció. Generá una nueva.</strong>}
+        No vence. Al ingresar se le pide elegir una contraseña nueva.
       </p>
-      <button type="button" className="btn btn--primary btn--lg" onClick={copy} disabled={left === 0}>
+      <button type="button" className="btn btn--primary btn--lg" onClick={copy}>
         {copied ? '¡Datos copiados!' : 'Copiar datos de acceso'}
       </button>
     </div>
@@ -170,7 +165,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
             <button type="button" className={`chip${role === 'superadmin' ? ' is-active' : ''}`} onClick={() => setRole('superadmin')}>Admin</button>
           </div>
         </Field>
-        <p className="muted aform__note afield--full">Se genera una contraseña temporal que dura 10 minutos. En el primer ingreso se le pide elegir una propia. Si existe un cliente con el mismo email, se vincula automáticamente.</p>
+        <p className="muted aform__note afield--full">Se genera una contraseña temporal que no vence. En el primer ingreso se le pide elegir una propia. Si existe un cliente con el mismo email, se vincula automáticamente.</p>
         {error && <p className="login__error afield--full">{error}</p>}
         <div className="aform__actions afield--full">
           <button type="button" className="btn btn--ghost" onClick={onClose}>Cancelar</button>

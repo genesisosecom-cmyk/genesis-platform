@@ -20,7 +20,7 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - **Contenido:** crear, ordenar, publicar/ocultar y eliminar módulos y lecciones. Cada módulo se puede dividir en **secciones** (ej: "Búsqueda y validación de producto") con sus clases; en el campus la lista de clases se agrupa por sección. Cada lección lleva el link del video (YouTube no listado, Vimeo, Loom, Bunny o .mp4), duración, descripción y **recursos de la clase** (archivos descargables de hasta 50 MB o links, con título y descripción corta), con vista previa.
 - **Herramientas:** baúl de herramientas con archivos subidos (bucket privado `toolbox`, hasta 50 MB) o links externos; borrador/publicada y orden.
 - **Resumen:** usuarios activos, avance promedio, respuestas sin leer, cobrado en el mes, cuotas vencidas y próximos cobros.
-- **Usuarios:** avance de cada alumno por módulo, última actividad y formularios respondidos. Alta de usuarios (miembro o admin) con contraseña temporal de 10 minutos y botón para copiar los datos de acceso; en el primer ingreso el usuario elige su contraseña. También se puede regenerar la contraseña temporal, quitar acceso, dar rol admin y eliminar usuarios.
+- **Usuarios:** avance de cada alumno por módulo, última actividad y formularios respondidos. Alta de usuarios (miembro o admin) con contraseña temporal (no vence) y botón para copiar los datos de acceso; en el primer ingreso el usuario elige su contraseña. También se puede regenerar la contraseña temporal, quitar acceso, dar rol admin y eliminar usuarios.
 - **Respuestas:** bandeja filtrable por próximas clases, coach y estado; vista de cada respuesta con sus preguntas, "marcar como leída", notas internas y eliminar.
 - **Formularios:** crear/editar formularios y los textos de la pantalla de inicio, copiar el link, pausar/activar.
 - **Agenda:** clases grupales semanales y 1:1 a pedido, con qué programas acceden a cada una.
@@ -81,7 +81,7 @@ La landing reenvía cada evento server-to-server a la Edge Function `ingest`:
 
 ## Seguridad
 
-- Las contraseñas temporales vencen a los 10 minutos: una tarea de `pg_cron` las invalida cada minuto y cierra las sesiones abiertas con ellas. Mientras un admin no cambie su contraseña temporal, no tiene permisos de admin.
+- Las contraseñas temporales no vencen, pero en el primer ingreso el usuario tiene que elegir una propia antes de usar el campus. Mientras un admin no cambie su contraseña temporal, no tiene permisos de admin.
 
 - Todas las tablas tienen RLS: un miembro solo ve su perfil, su progreso y sus respuestas; clientes y pagos son solo para superadmin.
 - Los formularios activos son públicos para leer y responder; las respuestas solo las lee el superadmin (o el propio usuario si respondió logueado).
