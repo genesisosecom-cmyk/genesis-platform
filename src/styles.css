@@ -1068,29 +1068,19 @@ html { scrollbar-gutter: stable; }
 
 /* =====================================================================
    Panel de admin: app shell con barra lateral de íconos, lienzo oscuro
-   con resplandor azul desde abajo y estados vacíos con ícono brillante.
-   El tema (colores) aplica solo dentro de .admin.
+   con resplandor naranja desde abajo y estados vacíos con ícono brillante.
+   Usa los colores de Genesis (variables de :root): naranja #f0641f y fondos cálidos.
    ===================================================================== */
 .admin {
-  --accent: #9cc3ef;
-  --accent-soft: rgba(156, 195, 239, 0.12);
-  --accent-line: rgba(156, 195, 239, 0.38);
-  --bg: #0b0b0c;
-  --text: #f2f4f7;
-  --muted: rgba(242, 244, 247, 0.5);
-  --line: rgba(255, 255, 255, 0.07);
-  --glass: rgba(20, 21, 24, 0.62);
-  --glass-hover: rgba(28, 30, 34, 0.75);
   --rail-w: 60px;
   position: relative;
   z-index: 0;
   min-height: 100vh;
   display: flex;
-  background: #121213;
+  background: var(--bg);
   color: var(--text);
 }
 .admin--open { --rail-w: 232px; }
-.admin ::selection { background: var(--accent); color: #0b0b0c; }
 
 /* ---------- Barra lateral ---------- */
 .rail {
@@ -1104,7 +1094,7 @@ html { scrollbar-gutter: stable; }
   align-items: stretch;
   gap: 4px;
   padding: 10px 10px 14px;
-  background: #0d0d0e;
+  background: #0c0907;
   border-right: 1px solid var(--line);
   transition: width 0.3s var(--ease);
   overflow: hidden;
@@ -1118,7 +1108,7 @@ html { scrollbar-gutter: stable; }
   height: 34px;
   padding: 0 10px;
   border-radius: 10px;
-  color: rgba(242, 244, 247, 0.55);
+  color: var(--muted);
   background: none;
   border: none;
   white-space: nowrap;
@@ -1127,7 +1117,7 @@ html { scrollbar-gutter: stable; }
 }
 .rail__item svg { flex: none; }
 .rail__item:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
-.rail__item.active { background: #f4f5f7; color: #0b0b0c; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 6px 18px rgba(156, 195, 239, 0.18); }
+.rail__item.active { background: #f6f1ec; color: #140802; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 6px 18px rgba(240, 100, 31, 0.22); }
 .rail__label { opacity: 0; transition: opacity 0.2s; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
 .admin--open .rail__label { opacity: 1; }
 .rail__toggle { color: var(--text); }
@@ -1137,8 +1127,9 @@ html { scrollbar-gutter: stable; }
   display: grid; place-items: center;
   border-radius: 9px;
   font-weight: 600; color: #fff;
-  background: linear-gradient(145deg, #2f6fd6, #173f8f);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 4px 14px rgba(47, 111, 214, 0.45);
+  color: #140802;
+  background: linear-gradient(145deg, #ff8a45, #c94a10);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset, 0 4px 14px rgba(240, 100, 31, 0.45);
 }
 .rail__brand-name { display: flex; flex-direction: column; line-height: 1.15; font-weight: 500; }
 .rail__brand-name small { color: var(--muted); font-weight: 400; font-size: 11px; }
@@ -1157,7 +1148,7 @@ html { scrollbar-gutter: stable; }
   border-radius: 50%;
   font-size: 12px;
   color: var(--text);
-  background: linear-gradient(145deg, #3a3d44, #1c1d21);
+  background: linear-gradient(145deg, #3d3129, #1c1612);
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 .rail__who { color: var(--text); }
@@ -1172,10 +1163,10 @@ html { scrollbar-gutter: stable; }
   flex: 1;
   min-width: 0;
   min-height: 100vh;
-  /* Resplandor azul que sube desde abajo, como en el diseño. */
+  /* Resplandor naranja de Genesis que sube desde abajo, como en el diseño. */
   background:
-    radial-gradient(60% 48% at 50% 112%, rgba(176, 210, 240, 0.78) 0%, rgba(96, 146, 196, 0.42) 30%, rgba(38, 72, 110, 0.16) 58%, rgba(20, 40, 64, 0) 78%) fixed,
-    linear-gradient(180deg, #0a0a0b 0%, #0b0c0e 60%, #0c1016 100%) fixed;
+    radial-gradient(60% 48% at 50% 112%, rgba(255, 150, 90, 0.62) 0%, rgba(240, 100, 31, 0.36) 30%, rgba(150, 55, 15, 0.14) 58%, rgba(60, 22, 6, 0) 78%) fixed,
+    linear-gradient(180deg, #080605 0%, #090705 60%, #120a06 100%) fixed;
 }
 .admin__top { display: flex; align-items: center; gap: 14px; padding: 28px clamp(18px, 3vw, 40px) 0; }
 .admin__title { font-size: clamp(24px, 3vw, 32px); font-weight: 300; letter-spacing: -0.02em; margin-top: 4px; }
@@ -1184,24 +1175,20 @@ html { scrollbar-gutter: stable; }
 /* Los paneles SDR/closer traen su propio encabezado: dentro del admin manda el del shell. */
 .admin__content .page__header { display: none; }
 
-/* ---------- Controles con el estilo del diseño ---------- */
-.admin .btn--primary,
+/* ---------- Controles con el estilo del diseño (botones píldora en el naranja de Genesis) ---------- */
 .btn--pill {
-  background: #f4f5f7;
-  border-color: #f4f5f7;
-  color: #0b0b0c;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px;
   border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #140802;
+  font-size: 14px;
   font-weight: 500;
 }
-.admin .btn--primary:hover,
-.btn--pill:hover { filter: none; background: #fff; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08); }
-.btn--pill { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: 1px solid #f4f5f7; font-size: 14px; }
+.btn--pill:hover { filter: brightness(1.1); box-shadow: 0 0 0 4px var(--accent-soft); }
 .admin .btn { border-radius: 999px; }
-.admin .btn--sm { border-radius: 999px; }
 .admin .glass { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.admin .kpi--ok .kpi__value { color: #b9d6f5; }
-.admin .table__row:hover { background: rgba(156, 195, 239, 0.06); }
-.admin .tabs__link.active, .admin .chip.is-active { color: var(--text); }
 
 /* ---------- Estado vacío ---------- */
 .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; padding: clamp(48px, 10vh, 110px) 16px; }
@@ -1209,14 +1196,14 @@ html { scrollbar-gutter: stable; }
   width: 124px; height: 124px;
   display: grid; place-items: center;
   border-radius: 28px;
-  color: #dbe8f8;
-  background: radial-gradient(circle at 50% 40%, rgba(40, 48, 62, 0.9), rgba(12, 13, 16, 0.95) 70%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6) inset, 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 60px rgba(120, 170, 230, 0.12);
+  color: #ffd9c2;
+  background: radial-gradient(circle at 50% 40%, rgba(58, 38, 26, 0.9), rgba(14, 10, 8, 0.95) 70%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6) inset, 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 60px rgba(240, 100, 31, 0.14);
 }
-.empty__tile svg { width: 68px; height: 68px; filter: drop-shadow(0 0 6px rgba(150, 195, 255, 0.85)) drop-shadow(0 0 18px rgba(110, 160, 240, 0.5)); }
+.empty__tile svg { width: 68px; height: 68px; filter: drop-shadow(0 0 6px rgba(255, 150, 90, 0.85)) drop-shadow(0 0 18px rgba(240, 100, 31, 0.5)); }
 .empty__title { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; }
-.empty__text { max-width: 360px; color: rgba(242, 244, 247, 0.6); font-size: 14px; line-height: 1.5; }
+.empty__text { max-width: 360px; color: var(--muted); font-size: 14px; line-height: 1.5; }
 
 @media (max-width: 900px) {
   .admin { --rail-w: 0px; }
