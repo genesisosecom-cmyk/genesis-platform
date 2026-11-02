@@ -121,6 +121,8 @@ export interface Payment {
   paid_at: string | null;
   method: string | null;
   notes: string | null;
+  sales_call_id: string | null;
+  receipt_path: string | null;
   created_at: string;
 }
 
@@ -131,6 +133,9 @@ export interface Launch {
   name: string;
   starts_at: string | null;
   is_current: boolean;
+  cash_goal: number | null;
+  daily_cash_goal: number | null;
+  sales_close_at: string | null;
   created_at: string;
 }
 
@@ -151,7 +156,48 @@ export interface SalesRep {
 export interface CrmSettings {
   id: boolean;
   default_whatsapp_url: string;
+  assignment_mode: 'bolsa' | 'ronda';
+  sdr_commission_pct: number;
+  closer_commission_pct: number;
   updated_at: string;
+}
+
+export interface CrmAgent {
+  id: string;
+  name: string;
+  description: string;
+  message: string;
+  sort: number;
+  active: boolean;
+  created_at: string;
+}
+
+export interface CrmResource {
+  id: string;
+  title: string;
+  kind: 'link' | 'guion';
+  url: string | null;
+  body: string | null;
+  audience: 'todos' | 'sdr' | 'closer';
+  sort: number;
+  active: boolean;
+  created_at: string;
+}
+
+export interface Commission {
+  rep_id: string;
+  role: 'sdr' | 'closer';
+  sales: number;
+  cash: number;
+  earned: number;
+  pending: number;
+}
+
+export interface LaunchProgress {
+  cash: number;
+  cash_today: number;
+  sales: number;
+  sales_today: number;
 }
 
 export interface Lead {
@@ -164,6 +210,8 @@ export interface Lead {
   created_at: string;
   updated_at: string;
 }
+
+export type Cadence = 'intensa' | 'normal' | 'espaciada' | 'ninguna';
 
 export type PostClassStatus = 'Nuevo lead' | 'No atendió' | 'Agendado' | 'No se cerró' | 'Cliente · falta onboarding' | 'Cliente';
 
@@ -190,6 +238,22 @@ export interface LeadLaunch {
   closer_id: string | null;
   next_action: string | null;
   next_action_at: string | null;
+  answered: boolean | null;
+  real_conversation: boolean | null;
+  sdr_qualified: boolean | null;
+  readiness: 'listo' | 'nutricion' | null;
+  agendo: boolean | null;
+  followup_cadence: Cadence | null;
+  followup_started_at: string | null;
+  followup_step: number;
+  next_followup_at: string | null;
+  finalized_reason: string | null;
+  finalized_at: string | null;
+  finalized_by_name: string | null;
+  no_cuenta_reason: string | null;
+  sdr_notes: string | null;
+  asked_agents: boolean;
+  agents_sent: { agents: string[]; channel: string; at: string; by: string }[];
   created_at: string;
   updated_at: string;
 }
@@ -225,7 +289,11 @@ export interface SalesCall {
   scheduled_by_name: string | null;
   sdr_note: string | null;
   status: CallStatus;
-  result: 'no_cerro' | 'cerro' | null;
+  result: 'no_cerro' | 'cerro' | 'seguimiento' | null;
+  sdr_id: string | null;
+  attendance: 'se_presento' | 'no_show' | 'cancelo' | null;
+  closer_followup_at: string | null;
+  program: string | null;
   result_note: string | null;
   amount_total: number | null;
   amount_collected: number | null;

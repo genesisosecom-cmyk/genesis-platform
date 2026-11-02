@@ -1,6 +1,6 @@
 import { supabase, unwrap } from '../lib/supabase';
 import { safeName } from '../content/files';
-import type { CrmSettings, LandingVisit, Launch, Lead, LeadEvent, LeadLaunch, PostClassStatus, SalesCall, SalesRep } from '../lib/types';
+import type { Cadence, Commission, CrmAgent, CrmResource, CrmSettings, LandingVisit, Launch, LaunchProgress, Lead, LeadEvent, LeadLaunch, Payment, PostClassStatus, SalesCall, SalesRep } from '../lib/types';
 
 export type LeadRow = LeadLaunch & { lead: Lead };
 export type CallRow = SalesCall & { lead_launch: LeadRow };
@@ -108,27 +108,106 @@ export const scheduleCall = (leadLaunchId: string, closerId: string, at: string,
 
 export const rescheduleCall = (callId: string, at: string) => rpc('crm_reschedule_call', { p_call: callId, p_at: at });
 
+export interface SalePayment {
+  amount: number;
+  method: string;
+  paid_at: string;
+  receipt_path?: string | null;
+}
+export interface Installment {
+  amount: number;
+  due_date: string;
+}
+
 export interface CallResultInput {
-  result: 'no_cerro' | 'cerro';
+  result: 'no_cerro' | 'cerro' | 'seguimiento';
   note: string;
+  program?: string;
   amountTotal?: number;
-  amountCollected?: number;
   currency?: string;
-  paymentMethod?: string;
-  receiptPath?: string | null;
+  payments?: SalePayment[];
+  installments?: Installment[];
+  followupAt?: string | null;
 }
 
 export const recordCallResult = (callId: string, r: CallResultInput) =>
-  rpc<{ client_id: string | null; payment_id: string | null; new_client: boolean }>('crm_record_call_result', {
+  rpc<{ client_id: string | null; new_client: boolean; collected: number }>('crm_record_call_result', {
     p_call: callId,
     p_result: r.result,
     p_note: r.note,
+    p_program: r.program ?? null,
     p_amount_total: r.amountTotal ?? null,
-    p_amount_collected: r.amountCollected ?? null,
     p_currency: r.currency ?? 'USD',
-    p_payment_method: r.paymentMethod ?? null,
-    p_receipt_path: r.receiptPath ?? null,
+    p_payments: r.payments ?? [],
+    p_installments: r.installments ?? [],
+    p_followup_at: r.followupAt ?? null,
   });
+
+export const markAttendance = (callId: string, attendance: 'se_presento' | 'no_show' | 'cancelo') =>
+  rpc('crm_mark_attendance', { p_call: callId, p_attendance: attendance });
+
+export const addSalePayment = (callId: string, p: SalePayment) =>
+  rpc('crm_add_payment', { p_call: callId, p_amount: p.amount, p_method: p.method, p_paid_at: p.paid_at, p_receipt_path: p.receipt_path ?? null });
+
+export const setInstallments = (callId: string, list: Installment[]) => rpc('crm_set_installments', { p_call: callId, p_installments: list });
+
+export const fetchSalePayments = async (callIds: string[]) =>
+  callIds.length
+    ? (unwrap(await supabase.from('payments').select('*').in('sales_call_id', callIds).order('due_date', { ascending: true, nullsFirst: false })) as Payment[])
+    : [];
+
+// ---------- SDR: trabajo del lead ----------
+
+export type LeadPatch = Partial<Pick<LeadLaunch, 'answered' | 'real_conversation' | 'sdr_qualified' | 'readiness' | 'agendo' | 'followup_cadence' | 'sdr_notes' | 'asked_agents'>>;
+
+export const claimLead = (id: string) => rpc('crm_claim', { p_ll: id });
+export const releaseLead = (id: string) => rpc('crm_release', { p_ll: id });
+export const dial = (id: string, delta: 1 | -1) => rpc<number>('crm_dial', { p_ll: id, p_delta: delta });
+export const updateLead = (id: string, patch: LeadPatch) => rpc('crm_update_lead', { p_ll: id, p: patch });
+export const followupDone = (id: string, responded: boolean, note: string) =>
+  rpc('crm_followup_done', { p_ll: id, p_responded: responded, p_note: note });
+export const finalizeLead = (id: string, reason: string) => rpc('crm_finalize', { p_ll: id, p_reason: reason });
+export const reopenLead = (id: string) => rpc('crm_reopen', { p_ll: id });
+export const setNoCuenta = (id: string, reason: string | null) => rpc('crm_set_no_cuenta', { p_ll: id, p_reason: reason });
+export const logAgents = (id: string, agentIds: string[], channel: 'whatsapp' | 'copia') =>
+  rpc('crm_log_agents', { p_ll: id, p_agents: agentIds, p_channel: channel });
+
+export interface NewLeadInput {
+  name: string;
+  email: string;
+  phone: string;
+  inversion: string;
+  origin: string;
+  assignMe: boolean;
+  closerId: string | null;
+  callAt: string | null;
+}
+export const createLead = (v: NewLeadInput) =>
+  rpc<string>('crm_create_lead', {
+    p_name: v.name,
+    p_email: v.email,
+    p_phone: v.phone,
+    p_inversion: v.inversion,
+    p_origin: v.origin,
+    p_assign_me: v.assignMe,
+    p_closer: v.closerId,
+    p_call_at: v.callAt,
+  });
+
+// ---------- Métricas, agentes, recursos ----------
+
+export const fetchLaunchProgress = (launchId: string) => rpc<LaunchProgress | null>('crm_launch_progress', { p_launch: launchId });
+
+export const fetchCommissions = (from?: string | null, to?: string | null) =>
+  rpc<Commission[]>('crm_commissions', { p_from: from ?? null, p_to: to ?? null });
+
+export const fetchAgents = async () =>
+  unwrap(await supabase.from('crm_agents').select('*').order('sort').order('name')) as CrmAgent[];
+
+export const fetchResources = async () =>
+  unwrap(await supabase.from('crm_resources').select('*').order('sort').order('title')) as CrmResource[];
+
+export type { Cadence };
 
 export const reassignSdr = (leadId: string, sdrId: string | null) => rpc('crm_reassign_sdr', { p_lead: leadId, p_sdr: sdrId });
 
