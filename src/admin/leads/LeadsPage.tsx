@@ -131,7 +131,7 @@ function LaunchLeads({ launchId, picker }: { launchId: string; picker: ReactNode
           </div>
         </div>
 
-        <State loading={false} error={null} empty={!filtered.length}>
+        <State loading={false} error={null} empty={!filtered.length} emptyState={rows.length ? { title: 'Ningún lead coincide', text: 'Probá con otros filtros.' } : { title: 'Todavía no hay leads', text: 'Llegan solos desde la landing (optin, grupo y aplicación).' }}>
           <LeadTable rows={filtered} reps={reps} linkTo={(r) => `/admin/leads/${r.id}`} />
         </State>
       </State>

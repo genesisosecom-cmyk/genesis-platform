@@ -40,7 +40,7 @@ export default function UsersPage() {
         <button className="btn btn--primary" onClick={() => setCreating(true)}>+ Nuevo usuario</button>
       </div>
 
-      <State loading={loading} error={error} empty={!profiles.length}>
+      <State loading={loading} error={error} empty={!profiles.length} emptyState={{ title: 'Todavía no hay usuarios', text: 'Creá alumnos y admins con una contraseña temporal para que entren al campus.', action: { label: 'Nuevo usuario', onClick: () => setCreating(true) } }}>
         <div className="glass table-wrap">
           <table className="table">
             <thead>

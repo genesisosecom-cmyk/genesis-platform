@@ -78,32 +78,35 @@ export default function App() {
           <Route path="sdr/:leadLaunchId" element={<RequireAuth area="sdr"><SdrPage /></RequireAuth>} />
           <Route path="closer" element={<RequireAuth area="closer"><CloserPage /></RequireAuth>} />
           <Route path="closer/:callId" element={<RequireAuth area="closer"><CloserPage /></RequireAuth>} />
-          <Route
-            path="admin"
-            element={
-              <RequireAuth area="admin">
-                <AdminLayout />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<OverviewPage />} />
-            <Route path="usuarios" element={<UsersPage />} />
-            <Route path="respuestas" element={<ResponsesPage />} />
-            <Route path="respuestas/:responseId" element={<ResponseDetailPage />} />
-            <Route path="formularios" element={<FormsPage />} />
-            <Route path="agenda" element={<AgendaPage />} />
-            <Route path="contenido" element={<ContentAdminPage />} />
-            <Route path="herramientas" element={<ToolsAdminPage />} />
-            <Route path="clientes" element={<ClientsPage />} />
-            <Route path="clientes/:clientId" element={<ClientDetailPage />} />
-            <Route path="finanzas" element={<FinancePage />} />
-            <Route path="leads" element={<LeadsPage />} />
-            <Route path="leads/:leadLaunchId" element={<AdminLeadPage />} />
-            <Route path="metricas" element={<MetricsPage />} />
-            <Route path="equipo" element={<TeamPage />} />
-            <Route path="ventas" element={<SalesPage />} />
-            <Route path="crm" element={<CrmConfigPage />} />
-          </Route>
+        </Route>
+        {/* El admin tiene su propio shell (barra lateral), fuera del layout del campus. */}
+        <Route
+          path="admin"
+          element={
+            <RequireAuth area="admin">
+              <AdminLayout />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<OverviewPage />} />
+          <Route path="usuarios" element={<UsersPage />} />
+          <Route path="respuestas" element={<ResponsesPage />} />
+          <Route path="respuestas/:responseId" element={<ResponseDetailPage />} />
+          <Route path="formularios" element={<FormsPage />} />
+          <Route path="agenda" element={<AgendaPage />} />
+          <Route path="contenido" element={<ContentAdminPage />} />
+          <Route path="herramientas" element={<ToolsAdminPage />} />
+          <Route path="clientes" element={<ClientsPage />} />
+          <Route path="clientes/:clientId" element={<ClientDetailPage />} />
+          <Route path="finanzas" element={<FinancePage />} />
+          <Route path="leads" element={<LeadsPage />} />
+          <Route path="leads/:leadLaunchId" element={<AdminLeadPage />} />
+          <Route path="metricas" element={<MetricsPage />} />
+          <Route path="equipo" element={<TeamPage />} />
+          <Route path="ventas" element={<SalesPage />} />
+          <Route path="crm" element={<CrmConfigPage />} />
+          <Route path="panel-sdr" element={<SdrPage />} />
+          <Route path="panel-closer" element={<CloserPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -57,7 +57,7 @@ export default function ToolsAdminPage() {
       </div>
       {msg && <p className="login__error">{msg}</p>}
 
-      <State loading={loading} error={error} empty={!tools.length}>
+      <State loading={loading} error={error} empty={!tools.length} emptyState={{ title: 'El baúl está vacío', text: 'Subí archivos o pegá links para que los alumnos los descarguen.', action: { label: 'Nueva herramienta', onClick: () => setEditing('new') } }}>
         <div className="glass table-wrap">
           <table className="table">
             <thead>

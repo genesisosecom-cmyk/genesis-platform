@@ -101,7 +101,7 @@ export default function ContentAdminPage() {
       </div>
       {msg && <p className="login__error">{msg}</p>}
 
-      <State loading={loading} error={error} empty={!modules.length}>
+      <State loading={loading} error={error} empty={!modules.length} emptyState={{ title: 'Todavía no hay módulos', text: 'Armá los módulos del campus con sus secciones, clases y recursos.', action: { label: 'Nuevo módulo', onClick: () => setEditing({ kind: 'module', module: null }) } }}>
         <div className="cms">
           {modules.map((m, i) => {
             const isOpen = open[m.id] ?? i === 0;

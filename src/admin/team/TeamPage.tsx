@@ -39,7 +39,7 @@ export default function TeamPage() {
         </div>
       </div>
 
-      <State loading={false} error={null} empty={!reps.length}>
+      <State loading={false} error={null} empty={!reps.length} emptyState={{ title: 'Todavía no hay equipo', text: 'Sumá a los SDRs y closers con su WhatsApp y su usuario del campus.', action: { label: 'Nueva persona', onClick: () => setEditing('new') } }}>
         <div className="glass table-wrap">
           <table className="table">
             <thead>
