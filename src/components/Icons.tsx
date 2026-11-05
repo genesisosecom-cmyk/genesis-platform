@@ -104,3 +104,6 @@ export const Orbit = (p: P) => (
     <path d="M32 24c.8 4.4 3.6 7.2 8 8-4.4.8-7.2 3.6-8 8-.8-4.4-3.6-7.2-8-8 4.4-.8 7.2-3.6 8-8z" fill="currentColor" stroke="none" />
   </svg>
 );
+export const Checklist = (p: P) => (
+  <svg {...base} {...p}><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6.5h9M11 12.5h9M11 18.5h9" /></svg>
+);
