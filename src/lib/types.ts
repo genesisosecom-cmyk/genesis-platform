@@ -103,6 +103,8 @@ export interface Client {
   start_date: string | null;
   end_date: string | null;
   total_amount: number;
+  /** Parte del contrato que corresponde a upsells. */
+  upsell_amount: number;
   currency: string;
   installments_count: number;
   notes: string | null;
@@ -123,6 +125,8 @@ export interface Payment {
   notes: string | null;
   sales_call_id: string | null;
   receipt_path: string | null;
+  /** Cuota de la venta original o de un upsell. */
+  kind: 'venta' | 'upsell';
   created_at: string;
 }
 

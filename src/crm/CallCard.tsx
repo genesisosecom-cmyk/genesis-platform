@@ -229,7 +229,7 @@ export default function CallCard({
       {mode === 'cerro' && (
         <div className="aform">
           <Field label="Programa"><input className="field" list="programs-crm" value={program} onChange={(e) => setProgram(e.target.value)} placeholder="Genesis OS, Genesis OG…" /></Field>
-          <datalist id="programs-crm">{['Genesis OS', 'Genesis OG', 'Fast Subscription'].map((p) => <option key={p} value={p} />)}</datalist>
+          <datalist id="programs-crm">{['Genesis OS', 'Genesis OG', 'Genesis Lite'].map((p) => <option key={p} value={p} />)}</datalist>
           <Field label="Monto de la venta"><input className="field" type="number" min="0" step="0.01" value={total} onChange={(e) => { setTotal(e.target.value); setQuotas(null); }} /></Field>
           <Field label="Moneda"><input className="field" value={currency} maxLength={3} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></Field>
           <div className="afield--full">

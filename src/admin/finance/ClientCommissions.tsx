@@ -16,6 +16,7 @@ export default function ClientCommissions({ clientId }: { clientId: string }) {
   );
   const [memberId, setMemberId] = useState('');
   const [pct, setPct] = useState('');
+  const [upsellPct, setUpsellPct] = useState('');
   const [error, setError] = useState('');
 
   const [team = [], assigned = []] = data ?? [];
@@ -23,18 +24,23 @@ export default function ClientCommissions({ clientId }: { clientId: string }) {
 
   const pick = (id: string) => {
     setMemberId(id);
-    setPct(String(team.find((t) => t.id === id)?.commission_pct ?? ''));
+    const t = team.find((x) => x.id === id);
+    setPct(String(t?.commission_pct ?? ''));
+    setUpsellPct(String(t?.upsell_pct ?? 0));
   };
 
   const add = async () => {
-    const value = Number(pct);
+    const value = Number(pct || 0);
+    const upsell = Number(upsellPct || 0);
     if (!memberId) return setError('Elegí un miembro');
-    if (!(value > 0 && value <= 100)) return setError('El % tiene que estar entre 0 y 100');
-    const { error: err } = await supabase.from('client_team').insert({ client_id: clientId, member_id: memberId, pct: value });
+    if (!(value >= 0 && value <= 100 && upsell >= 0 && upsell <= 100)) return setError('Los % tienen que estar entre 0 y 100');
+    if (!value && !upsell) return setError('Cargá al menos un %');
+    const { error: err } = await supabase.from('client_team').insert({ client_id: clientId, member_id: memberId, pct: value, upsell_pct: upsell });
     if (err) return setError(err.message);
     setError('');
     setMemberId('');
     setPct('');
+    setUpsellPct('');
     reload();
   };
 
@@ -46,7 +52,7 @@ export default function ClientCommissions({ clientId }: { clientId: string }) {
   return (
     <section className="glass panel">
       <h3 className="panel__title">Comisiones de esta venta</h3>
-      <p className="muted fin-hint">Cada miembro cobra su % sobre cada cuota que se cobre de este cliente.</p>
+      <p className="muted fin-hint">Cada miembro cobra su % sobre cada cuota que se cobre de este cliente: uno para las cuotas de la venta y otro para las de upsells.</p>
       {assigned.length === 0 && <p className="muted">Nadie cobra comisión por este cliente.</p>}
       <ul className="mini-list">
         {assigned.map((a) => {
@@ -55,7 +61,7 @@ export default function ClientCommissions({ clientId }: { clientId: string }) {
             <li key={a.member_id} className="mini-list__item">
               <span>{t?.name ?? '—'} {t && <Pill tone="muted">{t.role}</Pill>}</span>
               <span className="cell-actions">
-                <strong>{Number(a.pct)}%</strong>
+                <strong title="Sobre ventas · sobre upsells">{Number(a.pct)}% · <span className="muted">upsell</span> {Number(a.upsell_pct ?? 0)}%</strong>
                 <button className="btn btn--ghost btn--sm" onClick={() => remove(a.member_id)} aria-label="Quitar">✕</button>
               </span>
             </li>
@@ -70,7 +76,8 @@ export default function ClientCommissions({ clientId }: { clientId: string }) {
             <option value="">Agregar miembro…</option>
             {available.map((t) => <option key={t.id} value={t.id}>{t.name} · {t.role}</option>)}
           </select>
-          <input className="field field--num" type="number" min="0" max="100" step="0.5" placeholder="%" value={pct} onChange={(e) => setPct(e.target.value)} />
+          <input className="field field--num" type="number" min="0" max="100" step="0.5" placeholder="% venta" title="% sobre las cuotas de la venta" value={pct} onChange={(e) => setPct(e.target.value)} />
+          <input className="field field--num" type="number" min="0" max="100" step="0.5" placeholder="% upsell" title="% sobre las cuotas de upsells" value={upsellPct} onChange={(e) => setUpsellPct(e.target.value)} />
           <button className="btn btn--ghost btn--sm" onClick={add}>Agregar</button>
         </div>
       )}
