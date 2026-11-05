@@ -16,8 +16,8 @@ export interface TeamMember {
   profit_share_pct: number;
   /** % sugerido sobre los pagos de upsells. */
   upsell_pct: number;
-  /** Programas en los que se asigna solo a cada cliente nuevo. */
-  auto_programs: string[];
+  /** Obsoleta: reemplazada por TeamProgramRate. */
+  auto_programs?: string[];
   start_date: string;
   end_date: string | null;
   active: boolean;
@@ -29,6 +29,14 @@ export interface ClientTeam {
   /** % sobre las cuotas de la venta. */
   pct: number;
   /** % sobre las cuotas de upsells. */
+  upsell_pct: number;
+}
+
+/** % de un miembro para un programa: se asigna solo a cada cliente de ese programa. */
+export interface TeamProgramRate {
+  member_id: string;
+  program: string;
+  pct: number;
   upsell_pct: number;
 }
 
@@ -59,6 +67,7 @@ export interface FinanceData {
   expenses: Expense[];
   team: TeamMember[];
   clientTeam: ClientTeam[];
+  rates: TeamProgramRate[];
   payouts: Payout[];
 }
 
