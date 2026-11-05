@@ -28,6 +28,7 @@ import MetricsPage from './admin/leads/MetricsPage';
 import TeamPage from './admin/team/TeamPage';
 import SalesPage from './admin/sales/SalesPage';
 import CrmConfigPage from './admin/sales/CrmConfigPage';
+import TasksPage from './admin/tasks/TasksPage';
 import SdrPage from './crm/SdrPage';
 import CloserPage from './crm/CloserPage';
 import FullScreenMessage from './components/FullScreenMessage';
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="equipo" element={<TeamPage />} />
           <Route path="ventas" element={<SalesPage />} />
           <Route path="crm" element={<CrmConfigPage />} />
+          <Route path="tareas" element={<TasksPage />} />
           <Route path="panel-sdr" element={<SdrPage />} />
           <Route path="panel-closer" element={<CloserPage />} />
         </Route>

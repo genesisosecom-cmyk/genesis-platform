@@ -5,6 +5,7 @@ import {
   Bars,
   Book,
   Calendar,
+  Checklist,
   Coins,
   Doc,
   Grid,
@@ -33,7 +34,13 @@ interface Item {
 
 /** Secciones de la barra lateral, agrupadas como en el diseño. */
 const GROUPS: { title: string; items: Item[] }[] = [
-  { title: 'General', items: [{ to: '/admin', label: 'Resumen', icon: Home, end: true }] },
+  {
+    title: 'General',
+    items: [
+      { to: '/admin', label: 'Resumen', icon: Home, end: true },
+      { to: '/admin/tareas', label: 'Tareas', icon: Checklist },
+    ],
+  },
   {
     title: 'Ventas',
     items: [
