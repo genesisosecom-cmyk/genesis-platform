@@ -775,6 +775,17 @@ html { scrollbar-gutter: stable; }
 .fin-cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .fin-cat { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; background: var(--glass); }
 .field--month { width: auto; padding: 8px 14px; border-radius: 999px; color-scheme: dark; }
+.mpick { position: relative; }
+.mpick__btn { cursor: pointer; text-align: left; min-width: 150px; }
+.mpick__pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; width: min(280px, calc(100vw - 32px)); padding: 14px; border-radius: 14px; display: grid; gap: 12px; background: #120d0a; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55); }
+.mpick__head { display: flex; align-items: center; justify-content: space-between; }
+.mpick__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.mpick__m { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.mpick__m:hover:not(:disabled) { color: var(--text); }
+.mpick__m.is-on { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); font-weight: 600; }
+.mpick__m:disabled { opacity: .35; cursor: not-allowed; }
+.mpick__quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.mpick__hint { margin: 0; font-size: 12px; }
 .table--num td:not(:first-child), .table--num th:not(:first-child) { text-align: right; }
 .commission-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .commission-add .field--select { flex: 1; min-width: 180px; border-radius: 10px; }

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import { supabase } from '../../lib/supabase';
 import { fmtDate, fmtMoney, todayISO } from '../../lib/format';
@@ -19,7 +19,7 @@ import {
   type TeamMember,
 } from './compute';
 
-type Mode = 'month' | 'year' | 'all';
+type Mode = 'month' | 'months' | 'year' | 'all';
 
 const usd = (n: number) => fmtMoney(n, BASE_CURRENCY);
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -30,18 +30,20 @@ export default function FinancePage() {
   const current = monthOf(todayISO());
   const [mode, setMode] = useState<Mode>('month');
   const [month, setMonth] = useState(current);
+  const [picked, setPicked] = useState<string[]>([current]);
   const [year, setYear] = useState(current.slice(0, 4));
 
   return (
     <>
       <div className="toolbar">
         <div className="chips">
-          {(['month', 'year', 'all'] as const).map((m) => (
+          {(['month', 'months', 'year', 'all'] as const).map((m) => (
             <button key={m} className={`chip${mode === m ? ' is-active' : ''}`} onClick={() => setMode(m)}>
-              {m === 'month' ? 'Mes' : m === 'year' ? 'Año' : 'Todo'}
+              {m === 'month' ? 'Mes' : m === 'months' ? 'Varios meses' : m === 'year' ? 'Año' : 'Todo'}
             </button>
           ))}
           {mode === 'month' && <input className="field field--month" type="month" value={month} max={current} onChange={(e) => e.target.value && setMonth(e.target.value)} />}
+          {mode === 'months' && <MonthsPicker value={picked} onChange={setPicked} current={current} />}
           {mode === 'year' && (
             <select className="field field--select" value={year} onChange={(e) => setYear(e.target.value)}>
               {Array.from({ length: 4 }, (_, i) => String(Number(current.slice(0, 4)) - i)).map((y) => <option key={y} value={y}>{y}</option>)}
@@ -50,13 +52,102 @@ export default function FinancePage() {
         </div>
       </div>
       <State loading={loading} error={error}>
-        {data && <Finance data={data} mode={mode} month={month} year={year} current={current} reload={reload} />}
+        {data && <Finance data={data} mode={mode} month={month} picked={picked} year={year} current={current} reload={reload} />}
       </State>
     </>
   );
 }
 
-function Finance({ data, mode, month, year, current, reload }: { data: FinanceData; mode: Mode; month: string; year: string; current: string; reload: () => void }) {
+/** Texto corto de una selección de meses: "Mar 2026", "Ene – Mar 2026" o "Ene, Mar, Jun 2026". */
+function pickedLabel(sel: string[]) {
+  if (sel.length === 1) return monthLabel(sel[0]);
+  const contiguous = monthRange(sel[0], sel[sel.length - 1]).length === sel.length;
+  const sameYear = sel[0].slice(0, 4) === sel[sel.length - 1].slice(0, 4);
+  if (contiguous) return sameYear ? `${MONTHS[Number(sel[0].slice(5, 7)) - 1]} – ${monthLabel(sel[sel.length - 1])}` : `${monthLabel(sel[0])} – ${monthLabel(sel[sel.length - 1])}`;
+  if (sameYear && sel.length <= 4) return `${sel.map((m) => MONTHS[Number(m.slice(5, 7)) - 1]).join(', ')} ${sel[0].slice(0, 4)}`;
+  return `${sel.length} meses`;
+}
+
+/** Selector de varios meses: tocá para sumar o sacar un mes; con Shift, se marca el rango desde el último tocado. */
+function MonthsPicker({ value, onChange, current }: { value: string[]; onChange: (v: string[]) => void; current: string }) {
+  const [open, setOpen] = useState(false);
+  const [year, setYear] = useState(Number((value[value.length - 1] ?? current).slice(0, 4)));
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const currentYear = Number(current.slice(0, 4));
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: globalThis.MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  const set = (next: Iterable<string>) => {
+    const sorted = [...new Set(next)].filter((m) => m <= current).sort();
+    if (sorted.length) onChange(sorted);
+  };
+  const toggle = (m: string, e: MouseEvent) => {
+    if (e.shiftKey && anchor) {
+      const [a, b] = anchor < m ? [anchor, m] : [m, anchor];
+      set([...value, ...monthRange(a, b)]);
+    } else if (value.includes(m)) {
+      set(value.filter((x) => x !== m));
+    } else {
+      set([...value, m]);
+    }
+    setAnchor(m);
+  };
+  const lastN = (n: number) => {
+    const all = monthRange('2000-01', current);
+    set(all.slice(-n));
+  };
+  const yearMonths = monthRange(`${year}-01`, `${year}-12`);
+
+  return (
+    <div className="mpick" ref={box}>
+      <button type="button" className="field field--month mpick__btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        {pickedLabel(value)}
+      </button>
+      {open && (
+        <div className="mpick__pop" role="dialog" aria-label="Elegir meses">
+          <div className="mpick__head">
+            <button type="button" className="icon-btn" onClick={() => setYear((y) => y - 1)} aria-label="Año anterior">‹</button>
+            <strong>{year}</strong>
+            <button type="button" className="icon-btn" onClick={() => setYear((y) => y + 1)} disabled={year >= currentYear} aria-label="Año siguiente">›</button>
+          </div>
+          <div className="mpick__grid">
+            {yearMonths.map((m, i) => (
+              <button
+                key={m}
+                type="button"
+                className={`mpick__m${value.includes(m) ? ' is-on' : ''}`}
+                disabled={m > current}
+                aria-pressed={value.includes(m)}
+                onClick={(e) => toggle(m, e)}
+              >
+                {MONTHS[i]}
+              </button>
+            ))}
+          </div>
+          <div className="mpick__quick">
+            <button type="button" className="chip chip--sm" onClick={() => lastN(3)}>Últimos 3</button>
+            <button type="button" className="chip chip--sm" onClick={() => lastN(6)}>Últimos 6</button>
+            <button type="button" className="chip chip--sm" onClick={() => set(monthRange(`${year}-01`, `${year}-12`))}>Todo {year}</button>
+          </div>
+          <p className="muted mpick__hint">Tocá cada mes para sumarlo o sacarlo. Con Shift marcás un rango.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Finance({ data, mode, month, picked, year, current, reload }: { data: FinanceData; mode: Mode; month: string; picked: string[]; year: string; current: string; reload: () => void }) {
   const [memberModal, setMemberModal] = useState<TeamMember | 'new' | null>(null);
   const [expenseModal, setExpenseModal] = useState<Expense | 'new' | null>(null);
   const [payoutFor, setPayoutFor] = useState<TeamMember | null>(null);
@@ -65,9 +156,10 @@ function Finance({ data, mode, month, year, current, reload }: { data: FinanceDa
   const start = firstMonth(data, current);
   const months = useMemo(() => {
     if (mode === 'month') return [month];
+    if (mode === 'months') return picked;
     if (mode === 'year') return monthRange(`${year}-01`, year === current.slice(0, 4) ? current : `${year}-12`);
     return monthRange(start < current ? start : current, current);
-  }, [mode, month, year, current, start]);
+  }, [mode, month, picked, year, current, start]);
 
   const monthly = useMemo(() => months.map((m) => computeMonth(m, data)), [months, data]);
   const period = useMemo(() => sumMonths(monthly), [monthly]);
