@@ -18,12 +18,12 @@ export function splitEqually(total: number, count: number) {
   return Array.from({ length: count }, (_, i) => (i === count - 1 ? Math.round((total - base * (count - 1)) * 100) / 100 : base));
 }
 
-interface PlanRow {
+export interface PlanRow {
   amount: string;
   due: string;
 }
 
-const equalPlan = (total: number, count: number, firstDue: string): PlanRow[] =>
+export const equalPlan = (total: number, count: number, firstDue: string): PlanRow[] =>
   splitEqually(total, count).map((a, i) => ({ amount: total ? String(a) : '', due: addMonthsISO(firstDue, i) }));
 
 export default function ClientFormModal({ client, onClose, onSaved }: { client: Client | null; onClose: () => void; onSaved: (id: string) => void }) {
@@ -147,7 +147,7 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
         <Field label="Empresa"><input className="field" value={v.company} onChange={set('company')} /></Field>
         <Field label="Canal de Discord"><input className="field" value={v.discord_channel} onChange={set('discord_channel')} placeholder="#nombre-del-canal" /></Field>
         <Field label="Programa">
-          <input className="field" list="programs" value={v.program} onChange={set('program')} placeholder="Genesis OG, Fast Subscription, Genesis OS…" />
+          <input className="field" list="programs" value={v.program} onChange={set('program')} placeholder="Genesis OG, Genesis Lite, Genesis OS…" />
           <datalist id="programs">{PROGRAMS.map((p) => <option key={p} value={p} />)}</datalist>
         </Field>
         <Field label="Estado">

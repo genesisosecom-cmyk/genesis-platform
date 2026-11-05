@@ -14,6 +14,10 @@ export interface TeamMember {
   commission_pct: number;
   monthly_fee: number;
   profit_share_pct: number;
+  /** % sugerido sobre los pagos de upsells. */
+  upsell_pct: number;
+  /** Programas en los que se asigna solo a cada cliente nuevo. */
+  auto_programs: string[];
   start_date: string;
   end_date: string | null;
   active: boolean;
@@ -22,7 +26,10 @@ export interface TeamMember {
 export interface ClientTeam {
   client_id: string;
   member_id: string;
+  /** % sobre las cuotas de la venta. */
   pct: number;
+  /** % sobre las cuotas de upsells. */
+  upsell_pct: number;
 }
 
 export interface Expense {
@@ -61,6 +68,7 @@ export interface CommissionLine {
   paymentId: string;
   date: string;
   collected: number;
+  kind: 'venta' | 'upsell';
   pct: number;
   amount: number;
 }
@@ -114,9 +122,10 @@ export function monthRange(from: string, to: string) {
 }
 
 /** Mes de venta de un cliente: el de su primer pago cobrado (null si todavía no pagó). */
-export function saleMonth(clientId: string, payments: Payment[]) {
+/** Mes del primer pago cobrado del cliente (de la venta, de un upsell o de cualquiera). */
+export function saleMonth(clientId: string, payments: Payment[], kind?: Payment['kind']) {
   const first = payments
-    .filter((p) => p.client_id === clientId && p.paid_at)
+    .filter((p) => p.client_id === clientId && p.paid_at && (!kind || (p.kind ?? 'venta') === kind))
     .map((p) => p.paid_at!)
     .sort()[0];
   return first ? monthOf(first) : null;
@@ -129,11 +138,17 @@ export function computeMonth(month: string, d: FinanceData): MonthResult {
   const byMember: Record<string, MemberEarnings> = {};
   const member = (id: string) => (byMember[id] ??= { commissions: 0, fixed: 0, profitShare: 0, total: 0 });
 
-  // Facturación: el contrato completo cuenta en el mes de la venta, que es el mes del primer pago
-  // del cliente (no importa cuándo arranca el programa).
+  // Facturación: el contrato cuenta en el mes de la venta, que es el mes del primer pago del
+  // cliente (no importa cuándo arranca el programa). Un upsell cuenta en el mes de su primer pago.
   const billing = d.clients
-    .filter((c) => isBase(c.currency) && saleMonth(c.id, d.payments) === month)
-    .reduce((s, c) => s + Number(c.total_amount), 0);
+    .filter((c) => isBase(c.currency))
+    .reduce((s, c) => {
+      const upsell = Number(c.upsell_amount ?? 0);
+      let add = 0;
+      if (saleMonth(c.id, d.payments, 'venta') === month) add += Number(c.total_amount) - upsell;
+      if (upsell > 0 && saleMonth(c.id, d.payments, 'upsell') === month) add += upsell;
+      return s + add;
+    }, 0);
 
   const paid = d.payments.filter((p) => isBase(p.currency) && p.paid_at && monthOf(p.paid_at) === month);
   const cash = paid.reduce((s, p) => s + Number(p.amount), 0);
@@ -145,8 +160,11 @@ export function computeMonth(month: string, d: FinanceData): MonthResult {
   const commissionLines: CommissionLine[] = [];
   for (const p of paid) {
     for (const ct of d.clientTeam.filter((x) => x.client_id === p.client_id)) {
-      const amount = round((Number(p.amount) * Number(ct.pct)) / 100);
-      commissionLines.push({ memberId: ct.member_id, clientId: p.client_id, paymentId: p.id, date: p.paid_at!, collected: Number(p.amount), pct: Number(ct.pct), amount });
+      const kind = p.kind === 'upsell' ? 'upsell' : 'venta';
+      const pct = Number(kind === 'upsell' ? ct.upsell_pct : ct.pct);
+      if (!pct) continue;
+      const amount = round((Number(p.amount) * pct) / 100);
+      commissionLines.push({ memberId: ct.member_id, clientId: p.client_id, paymentId: p.id, date: p.paid_at!, collected: Number(p.amount), kind, pct, amount });
       member(ct.member_id).commissions += amount;
     }
   }

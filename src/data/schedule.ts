@@ -1,7 +1,7 @@
 import type { ClassSlot } from '../lib/types';
 
 /** Programas en orden de la escalera de valor. */
-export const PROGRAMS = ['Genesis OG', 'Fast Subscription', 'Genesis OS'] as const;
+export const PROGRAMS = ['Genesis OG', 'Genesis Lite', 'Genesis OS'] as const;
 
 export const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 

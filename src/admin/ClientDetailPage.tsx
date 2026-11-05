@@ -1,13 +1,14 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, unwrap } from '../lib/supabase';
 import { useAsync } from '../lib/useAsync';
 import { clientBalance, fetchForms, fetchPayments, paymentStatus } from './api';
 import { Field, Kpi, Modal, Pill, State } from './ui';
-import ClientFormModal, { STATUS_LABELS } from './ClientForm';
+import ClientFormModal, { equalPlan, STATUS_LABELS, type PlanRow } from './ClientForm';
+import { PROGRAMS } from '../data/schedule';
 import ProgressBar from '../components/ProgressBar';
 import { summarizeProgress } from '../progress/ProgressContext';
-import { fmtDate, fmtDateTime, fmtMoney, todayISO } from '../lib/format';
+import { addMonthsISO, fmtDate, fmtDateTime, fmtMoney, todayISO } from '../lib/format';
 import type { Client, FormResponse, LessonProgressRow, Payment, Profile } from '../lib/types';
 import { ArrowLeft } from '../components/Icons';
 import { discordVariants } from '../lib/discord';
@@ -44,6 +45,7 @@ export default function ClientDetailPage() {
   const [editing, setEditing] = useState(false);
   const [paymentModal, setPaymentModal] = useState<Payment | 'new' | null>(null);
   const [paying, setPaying] = useState<Payment | null>(null);
+  const [upselling, setUpselling] = useState(false);
 
   const remove = async () => {
     if (!data || !window.confirm(`¿Eliminar a ${data.client.full_name} y todos sus pagos? Esta acción no se puede deshacer.`)) return;
@@ -93,7 +95,7 @@ export default function ClientDetailPage() {
               </div>
 
               <div className="kpis kpis--4">
-                <Kpi label="Total contrato" value={fmtMoney(b.total, c.currency)} hint={`${c.installments_count} cuota${c.installments_count > 1 ? 's' : ''}`} />
+                <Kpi label="Total contrato" value={fmtMoney(b.total, c.currency)} hint={`${c.installments_count} cuota${c.installments_count > 1 ? 's' : ''}${Number(c.upsell_amount) > 0 ? ` · upsell ${fmtMoney(Number(c.upsell_amount), c.currency)}` : ''}`} />
                 <Kpi label="Pagado" value={fmtMoney(b.paid, c.currency)} hint={`${b.percent}%`} tone="ok" />
                 <Kpi label="Saldo" value={fmtMoney(b.pending, c.currency)} hint={b.next ? `Próx.: ${fmtDate(b.next.due_date)}` : undefined} />
                 <Kpi label="Vencido" value={fmtMoney(b.overdueAmount, c.currency)} tone={b.overdueCount ? 'warn' : undefined} hint={b.overdueCount ? `${b.overdueCount} cuota(s)` : 'Al día'} />
@@ -102,7 +104,10 @@ export default function ClientDetailPage() {
 
               <div className="panel__head">
                 <h3 className="section-title">Cuotas y pagos</h3>
-                <button className="btn btn--ghost btn--sm" onClick={() => setPaymentModal('new')}>+ Agregar cuota / pago</button>
+                <div className="filters" style={{ marginBottom: 0 }}>
+                  <button className="btn btn--ghost btn--sm" onClick={() => setUpselling(true)}>Registrar upsell</button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => setPaymentModal('new')}>+ Agregar cuota / pago</button>
+                </div>
               </div>
               <div className="glass table-wrap">
                 <table className="table">
@@ -114,7 +119,7 @@ export default function ClientDetailPage() {
                       return (
                         <tr key={p.id}>
                           <td>{p.installment_number ?? '—'}</td>
-                          <td>{fmtMoney(Number(p.amount), p.currency)}</td>
+                          <td>{fmtMoney(Number(p.amount), p.currency)}{p.kind === 'upsell' && <> <Pill tone="accent">Upsell</Pill></>}</td>
                           <td>{fmtDate(p.due_date)}</td>
                           <td><Pill tone={st === 'pagado' ? 'ok' : st === 'vencido' ? 'warn' : 'muted'}>{st[0].toUpperCase() + st.slice(1)}</Pill></td>
                           <td>{fmtDate(p.paid_at)}</td>
@@ -179,6 +184,7 @@ export default function ClientDetailPage() {
               {paymentModal && (
                 <PaymentModal client={c} payment={paymentModal === 'new' ? null : paymentModal} nextNumber={payments.length + 1} onClose={() => setPaymentModal(null)} onSaved={() => { setPaymentModal(null); reload(); }} />
               )}
+              {upselling && <UpsellModal client={c} nextNumber={payments.length + 1} onClose={() => setUpselling(false)} onSaved={() => { setUpselling(false); reload(); }} />}
               {paying && <RegisterPaymentModal payment={paying} onClose={() => setPaying(null)} onSaved={() => { setPaying(null); reload(); }} />}
             </>
           );
@@ -229,6 +235,7 @@ function PaymentModal({ client, payment, nextNumber, onClose, onSaved }: { clien
     paid_at: payment?.paid_at ?? '',
     method: payment?.method ?? '',
     notes: payment?.notes ?? '',
+    kind: payment?.kind ?? 'venta',
   });
   const [error, setError] = useState('');
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((s) => ({ ...s, [k]: e.target.value }));
@@ -245,6 +252,7 @@ function PaymentModal({ client, payment, nextNumber, onClose, onSaved }: { clien
       paid_at: v.paid_at || null,
       method: v.method || null,
       notes: v.notes || null,
+      kind: v.kind,
     };
     const { error: err } = payment
       ? await supabase.from('payments').update(payload).eq('id', payment.id)
@@ -263,11 +271,135 @@ function PaymentModal({ client, payment, nextNumber, onClose, onSaved }: { clien
         <Field label="Fecha de pago (vacío = pendiente)"><input className="field" type="date" value={v.paid_at} onChange={set('paid_at')} /></Field>
         <Field label="Método"><input className="field" list="methods2" value={v.method} onChange={set('method')} /></Field>
         <datalist id="methods2">{METHODS.map((m) => <option key={m} value={m} />)}</datalist>
+        <Field label="Tipo">
+          <select className="field field--select" value={v.kind} onChange={set('kind')}>
+            <option value="venta">Venta</option>
+            <option value="upsell">Upsell</option>
+          </select>
+        </Field>
         <Field label="Notas" full><input className="field" value={v.notes} onChange={set('notes')} /></Field>
         {error && <p className="login__error afield--full">{error}</p>}
         <div className="aform__actions afield--full">
           <button type="button" className="btn btn--ghost" onClick={onClose}>Cancelar</button>
           <button className="btn btn--primary">Guardar</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** Upsell: el cliente pasa a otro programa, el monto se suma al contrato y se crean sus cuotas marcadas como upsell. */
+function UpsellModal({ client, nextNumber, onClose, onSaved }: { client: Client; nextNumber: number; onClose: () => void; onSaved: () => void }) {
+  const [program, setProgram] = useState(client.program === 'Genesis Lite' ? 'Genesis OS' : client.program ?? 'Genesis OS');
+  const [amount, setAmount] = useState('');
+  const [count, setCount] = useState('1');
+  const [firstDue, setFirstDue] = useState(todayISO());
+  const [plan, setPlan] = useState<PlanRow[]>([]);
+  const [touched, setTouched] = useState(false);
+  const [firstPaid, setFirstPaid] = useState(true);
+  const [method, setMethod] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const total = Number(amount || 0);
+  const n = Math.max(1, Math.min(24, Number(count || 1)));
+  useEffect(() => {
+    if (!touched) setPlan(equalPlan(total, n, firstDue));
+  }, [total, n, firstDue, touched]);
+  useEffect(() => {
+    if (!touched) return;
+    setPlan((rows) => (rows.length === n ? rows : rows.length > n ? rows.slice(0, n) : [...rows, ...Array.from({ length: n - rows.length }, (_, i) => ({ amount: '', due: addMonthsISO(firstDue, rows.length + i) }))]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n]);
+  const editRow = (i: number, patch: Partial<PlanRow>) => {
+    setTouched(true);
+    setPlan((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  };
+  const planSum = Math.round(plan.reduce((acc, r) => acc + Number(r.amount || 0), 0) * 100) / 100;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!(total > 0)) return setError('Ingresá el monto del upsell');
+    if (plan.some((r) => !(Number(r.amount) > 0) || !r.due)) return setError('Cada cuota necesita un monto mayor a 0 y una fecha');
+    if (planSum !== total) return setError(`Las cuotas suman ${fmtMoney(planSum, client.currency)} y el upsell es de ${fmtMoney(total, client.currency)}`);
+    setBusy(true);
+    setError('');
+    const today = todayISO();
+    const rows = plan.map((r, i) => ({
+      client_id: client.id,
+      installment_number: nextNumber + i,
+      amount: Number(r.amount),
+      currency: client.currency,
+      due_date: r.due,
+      kind: 'upsell',
+      paid_at: firstPaid && i === 0 ? today : null,
+      method: firstPaid && i === 0 ? method || null : null,
+      notes: `Upsell ${client.program ?? ''} → ${program}`.trim(),
+    }));
+    const { error: pErr } = await supabase.from('payments').insert(rows);
+    if (pErr) {
+      setBusy(false);
+      return setError(pErr.message);
+    }
+    const { error: cErr } = await supabase
+      .from('clients')
+      .update({
+        program,
+        total_amount: Number(client.total_amount) + total,
+        upsell_amount: Number(client.upsell_amount ?? 0) + total,
+        installments_count: client.installments_count + rows.length,
+      })
+      .eq('id', client.id);
+    if (cErr) {
+      setBusy(false);
+      return setError(`Las cuotas del upsell se crearon, pero no se pudo actualizar el cliente: ${cErr.message}`);
+    }
+    onSaved();
+  };
+
+  return (
+    <Modal title={`Upsell · ${client.full_name}`} onClose={onClose}>
+      <form className="aform" onSubmit={submit}>
+        <Field label="Pasa al programa">
+          <select className="field field--select" value={program} onChange={(e) => setProgram(e.target.value)}>
+            {PROGRAMS.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </Field>
+        <Field label={`Monto del upsell (${client.currency})`}><input className="field" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></Field>
+        <Field label="Cantidad de cuotas"><input className="field" type="number" min="1" max="24" value={count} onChange={(e) => setCount(e.target.value)} /></Field>
+        <Field label="Primer vencimiento"><input className="field" type="date" value={firstDue} onChange={(e) => setFirstDue(e.target.value)} /></Field>
+        {total > 0 && (
+          <div className="afield--full plan">
+            <div className="plan__head"><span>Cuota</span><span>Monto ({client.currency})</span><span>Vencimiento</span></div>
+            {plan.map((r, i) => (
+              <div key={i} className="plan__row">
+                <span className="plan__n">{nextNumber + i}</span>
+                <input className="field" type="number" min="0" step="0.01" value={r.amount} onChange={(e) => editRow(i, { amount: e.target.value })} aria-label={`Monto cuota ${i + 1}`} />
+                <input className="field" type="date" value={r.due} onChange={(e) => editRow(i, { due: e.target.value })} aria-label={`Vencimiento cuota ${i + 1}`} />
+              </div>
+            ))}
+            <div className="plan__foot">
+              <span className={planSum !== total ? 'plan__warn' : 'muted'}>Suma de cuotas: {fmtMoney(planSum, client.currency)} de {fmtMoney(total, client.currency)}</span>
+              {touched && <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setTouched(false); setPlan(equalPlan(total, n, firstDue)); }}>Repartir en partes iguales</button>}
+            </div>
+          </div>
+        )}
+        <label className="check afield--full">
+          <input type="checkbox" checked={firstPaid} onChange={(e) => setFirstPaid(e.target.checked)} /> La primera cuota ya está cobrada (hoy)
+        </label>
+        {firstPaid && (
+          <Field label="Método del primer pago">
+            <input className="field" list="methods-upsell" value={method} onChange={(e) => setMethod(e.target.value)} />
+            <datalist id="methods-upsell">{METHODS.map((m) => <option key={m} value={m} />)}</datalist>
+          </Field>
+        )}
+        <p className="muted aform__note afield--full">
+          El cliente pasa a {program}, el monto se suma al contrato ({fmtMoney(Number(client.total_amount), client.currency)} → {fmtMoney(Number(client.total_amount) + total, client.currency)}) y se crean las cuotas marcadas como upsell. Quien tenga % de upsell en este cliente cobra comisión sobre ellas. En Finanzas, el upsell se factura en el mes de su primer pago.
+        </p>
+        {error && <p className="login__error afield--full">{error}</p>}
+        <div className="aform__actions afield--full">
+          <button type="button" className="btn btn--ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn--primary" disabled={busy}>{busy ? 'Guardando…' : 'Registrar upsell'}</button>
         </div>
       </form>
     </Modal>

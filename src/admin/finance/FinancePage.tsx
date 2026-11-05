@@ -5,6 +5,7 @@ import { fmtDate, fmtMoney, todayISO } from '../../lib/format';
 import { Field, Kpi, Modal, Pill, State } from '../ui';
 import { paymentStatus } from '../api';
 import { fetchFinance, EXPENSE_CATEGORIES, TEAM_ROLES } from './api';
+import { PROGRAMS } from '../../data/schedule';
 import {
   BASE_CURRENCY,
   computeMonth,
@@ -299,15 +300,16 @@ function Finance({ data, mode, month, picked, year, current, reload }: { data: F
       <h3 className="section-title">Comisiones del período</h3>
       <div className="glass table-wrap">
         <table className="table">
-          <thead><tr><th>Fecha de cobro</th><th>Cliente</th><th>Miembro</th><th>Cobrado</th><th>%</th><th>Comisión</th></tr></thead>
+          <thead><tr><th>Fecha de cobro</th><th>Cliente</th><th>Miembro</th><th>Cobrado</th><th>Tipo</th><th>%</th><th>Comisión</th></tr></thead>
           <tbody>
-            {period.commissionLines.length === 0 && <tr><td colSpan={6} className="muted">Sin comisiones en este período.</td></tr>}
+            {period.commissionLines.length === 0 && <tr><td colSpan={7} className="muted">Sin comisiones en este período.</td></tr>}
             {[...period.commissionLines].sort((a, b) => b.date.localeCompare(a.date)).map((l) => (
               <tr key={`${l.paymentId}-${l.memberId}`}>
                 <td>{fmtDate(l.date)}</td>
                 <td>{clientName(l.clientId)}</td>
                 <td>{memberName(l.memberId)}</td>
                 <td>{usd(l.collected)}</td>
+                <td>{l.kind === 'upsell' ? <Pill tone="accent">Upsell</Pill> : <span className="muted">Venta</span>}</td>
                 <td>{l.pct}%</td>
                 <td>{usd(l.amount)}</td>
               </tr>
@@ -379,6 +381,8 @@ function Finance({ data, mode, month, picked, year, current, reload }: { data: F
 function schemeLabel(t: TeamMember) {
   const parts = [];
   if (t.commission_pct) parts.push(`${t.commission_pct}% comisión`);
+  if (t.upsell_pct) parts.push(`${t.upsell_pct}% de upsells`);
+  if (t.auto_programs?.length) parts.push(`todos los de ${t.auto_programs.join(', ')}`);
   if (t.monthly_fee) parts.push(`${usd(t.monthly_fee)} fijo/mes`);
   if (t.profit_share_pct) parts.push(`${t.profit_share_pct}% de la ganancia`);
   return parts.join(' · ') || 'Sin esquema cargado';
@@ -389,14 +393,17 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
     name: member?.name ?? '',
     role: member?.role ?? 'Closer',
     commission_pct: String(member?.commission_pct ?? 0),
+    upsell_pct: String(member?.upsell_pct ?? 0),
     monthly_fee: String(member?.monthly_fee ?? 0),
     profit_share_pct: String(member?.profit_share_pct ?? 0),
     start_date: member?.start_date ?? todayISO(),
     end_date: member?.end_date ?? '',
     active: member?.active ?? true,
   });
+  const [programs, setPrograms] = useState<string[]>(member?.auto_programs ?? []);
   const [error, setError] = useState('');
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((s) => ({ ...s, [k]: e.target.value }));
+  const toggleProgram = (p: string) => setPrograms((ps) => (ps.includes(p) ? ps.filter((x) => x !== p) : [...ps, p]));
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -406,14 +413,30 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
       name: v.name.trim(),
       role: v.role,
       commission_pct: pct(v.commission_pct),
+      upsell_pct: pct(v.upsell_pct),
+      auto_programs: programs,
       monthly_fee: Math.max(0, Number(v.monthly_fee) || 0),
       profit_share_pct: pct(v.profit_share_pct),
       start_date: v.start_date || todayISO(),
       end_date: v.end_date || null,
       active: v.active,
     };
-    const { error: err } = member ? await supabase.from('team_members').update(payload).eq('id', member.id) : await supabase.from('team_members').insert(payload);
-    if (err) return setError(err.message);
+    const saved = member
+      ? await supabase.from('team_members').update(payload).eq('id', member.id).select('id').single()
+      : await supabase.from('team_members').insert(payload).select('id').single();
+    if (saved.error) return setError(saved.error.message);
+
+    // Programas recién elegidos: ofrecer asignarlo también a los clientes que ya existen.
+    const added = programs.filter((p) => !(member?.auto_programs ?? []).includes(p));
+    if (added.length && v.active) {
+      const { data: existing, error: qErr } = await supabase.from('clients').select('id').in('program', added);
+      if (qErr) return setError(qErr.message);
+      if (existing?.length && window.confirm(`¿Asignarlo también a los ${existing.length} clientes que ya están en ${added.join(', ')}? Cobra comisión sobre todo lo que se les cobró y se les cobre.`)) {
+        const rows = existing.map((c) => ({ client_id: c.id, member_id: saved.data.id, pct: payload.commission_pct, upsell_pct: payload.upsell_pct }));
+        const { error: aErr } = await supabase.from('client_team').upsert(rows, { onConflict: 'client_id,member_id', ignoreDuplicates: true });
+        if (aErr) return setError(aErr.message);
+      }
+    }
     onSaved();
   };
 
@@ -433,7 +456,8 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
             {TEAM_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </Field>
-        <Field label="Comisión por defecto (%)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.commission_pct} onChange={set('commission_pct')} /></Field>
+        <Field label="Comisión sobre ventas (%)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.commission_pct} onChange={set('commission_pct')} /></Field>
+        <Field label="Comisión sobre upsells (%)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.upsell_pct} onChange={set('upsell_pct')} /></Field>
         <Field label="Fijo mensual (USD)"><input className="field" type="number" min="0" step="1" value={v.monthly_fee} onChange={set('monthly_fee')} /></Field>
         <Field label="Reparto de ganancia (%)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.profit_share_pct} onChange={set('profit_share_pct')} /></Field>
         <Field label="Desde"><input className="field" type="date" value={v.start_date} onChange={set('start_date')} /></Field>
@@ -441,8 +465,16 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
         <label className="check" style={{ alignSelf: 'end', paddingBottom: 12 }}>
           <input type="checkbox" checked={v.active} onChange={(e) => setV((s) => ({ ...s, active: e.target.checked }))} /> Activo
         </label>
+        <div className="afield afield--full">
+          <span className="afield__label">Se asigna solo a todos los clientes de</span>
+          <div className="chips">
+            {PROGRAMS.map((p) => (
+              <button key={p} type="button" className={`chip chip--sm${programs.includes(p) ? ' is-active' : ''}`} aria-pressed={programs.includes(p)} onClick={() => toggleProgram(p)}>{p}</button>
+            ))}
+          </div>
+        </div>
         <p className="muted aform__note afield--full">
-          La comisión se cobra sobre lo cobrado de los clientes que tenga asignados (se asignan en la ficha del cliente, con este % como sugerido). El reparto de ganancia se calcula sobre el resultado neto de cada mes.
+          La comisión se cobra sobre lo cobrado de los clientes que tenga asignados: un % sobre las cuotas de la venta y otro sobre las de upsells. Se asignan en la ficha de cada cliente (con estos % como sugeridos) o solos, por programa. El reparto de ganancia se calcula sobre el resultado neto de cada mes.
         </p>
         {error && <p className="login__error afield--full">{error}</p>}
         <div className="aform__actions afield--full">

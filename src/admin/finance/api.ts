@@ -24,8 +24,8 @@ export async function fetchFinance(): Promise<FinanceData> {
     clients,
     payments,
     expenses: num(expenses, ['amount']),
-    team: num(team, ['commission_pct', 'monthly_fee', 'profit_share_pct']),
-    clientTeam: num(clientTeam, ['pct']),
+    team: num(team, ['commission_pct', 'monthly_fee', 'profit_share_pct', 'upsell_pct']),
+    clientTeam: num(clientTeam, ['pct', 'upsell_pct']),
     payouts: num(payouts, ['amount']),
   };
 }

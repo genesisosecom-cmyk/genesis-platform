@@ -11,7 +11,7 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 
 **Formularios pre-clase** — `/f/<link>` (principal: `/f/pre-clase`)
 - Formato paso a paso, una pantalla por pregunta, con atajos de teclado (Enter, letras A/B/C) y barra de progreso.
-- Pre-clase: ¿Quién sos? → programa (Genesis OG, Fast Subscription, Genesis OS) → clase y fecha según la agenda de ese programa → preguntas (las que quiera) → enviar.
+- Pre-clase: ¿Quién sos? → programa (Genesis OG, Genesis Lite, Genesis OS) → clase y fecha según la agenda de ese programa → preguntas (las que quiera) → enviar.
 - También se pueden armar formularios personalizados (texto corto, texto largo, opción única y escala).
 - No hace falta cuenta para responder.
 
