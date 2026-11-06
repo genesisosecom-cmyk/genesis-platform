@@ -16,8 +16,6 @@ export interface TeamMember {
   profit_share_pct: number;
   /** % sugerido sobre los pagos de upsells. */
   upsell_pct: number;
-  /** Obsoleta: reemplazada por TeamProgramRate. */
-  auto_programs?: string[];
   start_date: string;
   end_date: string | null;
   active: boolean;
