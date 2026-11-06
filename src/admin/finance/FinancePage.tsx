@@ -15,9 +15,11 @@ import {
   monthRange,
   payoutsByMember,
   sumMonths,
+  type ClientTeam,
   type Expense,
   type FinanceData,
   type TeamMember,
+  type TeamProgramRate,
 } from './compute';
 
 type Mode = 'month' | 'months' | 'year' | 'all';
@@ -240,7 +242,7 @@ function Finance({ data, mode, month, picked, year, current, reload }: { data: F
                 <tr key={t.id}>
                   <td>
                     <div className="cell-main">{t.name} <Pill tone="muted">{t.role}</Pill>{!t.active && <Pill tone="muted">Inactivo</Pill>}</div>
-                    <div className="cell-sub">{schemeLabel(t)}</div>
+                    <div className="cell-sub">{schemeLabel(t, data.rates)}</div>
                   </td>
                   <td>{usd(e.commissions)}</td>
                   <td>{usd(e.fixed)}</td>
@@ -364,7 +366,7 @@ function Finance({ data, mode, month, picked, year, current, reload }: { data: F
         </>
       )}
 
-      {memberModal && <MemberModal member={memberModal === 'new' ? null : memberModal} onClose={() => setMemberModal(null)} onSaved={() => { setMemberModal(null); reload(); }} />}
+      {memberModal && <MemberModal member={memberModal === 'new' ? null : memberModal} rates={data.rates} onClose={() => setMemberModal(null)} onSaved={() => { setMemberModal(null); reload(); }} />}
       {expenseModal && <ExpenseModal expense={expenseModal === 'new' ? null : expenseModal} onClose={() => setExpenseModal(null)} onSaved={() => { setExpenseModal(null); reload(); }} />}
       {payoutFor && (
         <PayoutModal
@@ -378,17 +380,17 @@ function Finance({ data, mode, month, picked, year, current, reload }: { data: F
   );
 }
 
-function schemeLabel(t: TeamMember) {
+function schemeLabel(t: TeamMember, rates: TeamProgramRate[]) {
   const parts = [];
-  if (t.commission_pct) parts.push(`${t.commission_pct}% comisión`);
-  if (t.upsell_pct) parts.push(`${t.upsell_pct}% de upsells`);
-  if (t.auto_programs?.length) parts.push(`todos los de ${t.auto_programs.join(', ')}`);
+  const mine = rates.filter((x) => x.member_id === t.id);
+  for (const x of mine) parts.push(`${x.program}: ${x.pct}%${x.upsell_pct ? ` · upsell ${x.upsell_pct}%` : ''}`);
+  if (!mine.length && t.commission_pct) parts.push(`${t.commission_pct}% comisión${t.upsell_pct ? ` · upsell ${t.upsell_pct}%` : ''}`);
   if (t.monthly_fee) parts.push(`${usd(t.monthly_fee)} fijo/mes`);
   if (t.profit_share_pct) parts.push(`${t.profit_share_pct}% de la ganancia`);
   return parts.join(' · ') || 'Sin esquema cargado';
 }
 
-function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; onClose: () => void; onSaved: () => void }) {
+function MemberModal({ member, rates, onClose, onSaved }: { member: TeamMember | null; rates: TeamProgramRate[]; onClose: () => void; onSaved: () => void }) {
   const [v, setV] = useState({
     name: member?.name ?? '',
     role: member?.role ?? 'Closer',
@@ -400,10 +402,19 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
     end_date: member?.end_date ?? '',
     active: member?.active ?? true,
   });
-  const [programs, setPrograms] = useState<string[]>(member?.auto_programs ?? []);
+  // % por programa: si está marcado, se asigna solo a cada cliente de ese programa con esos %.
+  const before = rates.filter((x) => member && x.member_id === member.id);
+  const [byProgram, setByProgram] = useState<Record<string, { on: boolean; pct: string; upsell: string }>>(() =>
+    Object.fromEntries(
+      [...new Set([...PROGRAMS, ...before.map((x) => x.program)])].map((p) => {
+        const x = before.find((b) => b.program === p);
+        return [p, { on: Boolean(x), pct: String(x?.pct ?? ''), upsell: String(x?.upsell_pct ?? '') }];
+      }),
+    ),
+  );
   const [error, setError] = useState('');
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((s) => ({ ...s, [k]: e.target.value }));
-  const toggleProgram = (p: string) => setPrograms((ps) => (ps.includes(p) ? ps.filter((x) => x !== p) : [...ps, p]));
+  const setRate = (p: string, patch: Partial<{ on: boolean; pct: string; upsell: string }>) => setByProgram((s) => ({ ...s, [p]: { ...s[p], ...patch } }));
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -414,7 +425,6 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
       role: v.role,
       commission_pct: pct(v.commission_pct),
       upsell_pct: pct(v.upsell_pct),
-      auto_programs: programs,
       monthly_fee: Math.max(0, Number(v.monthly_fee) || 0),
       profit_share_pct: pct(v.profit_share_pct),
       start_date: v.start_date || todayISO(),
@@ -426,14 +436,46 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
       : await supabase.from('team_members').insert(payload).select('id').single();
     if (saved.error) return setError(saved.error.message);
 
-    // Programas recién elegidos: ofrecer asignarlo también a los clientes que ya existen.
-    const added = programs.filter((p) => !(member?.auto_programs ?? []).includes(p));
-    if (added.length && v.active) {
-      const { data: existing, error: qErr } = await supabase.from('clients').select('id').in('program', added);
-      if (qErr) return setError(qErr.message);
-      if (existing?.length && window.confirm(`¿Asignarlo también a los ${existing.length} clientes que ya están en ${added.join(', ')}? Cobra comisión sobre todo lo que se les cobró y se les cobre.`)) {
-        const rows = existing.map((c) => ({ client_id: c.id, member_id: saved.data.id, pct: payload.commission_pct, upsell_pct: payload.upsell_pct }));
-        const { error: aErr } = await supabase.from('client_team').upsert(rows, { onConflict: 'client_id,member_id', ignoreDuplicates: true });
+    const memberId = (saved.data as { id: string }).id;
+
+    // % por programa: se guardan los marcados y se borran los desmarcados.
+    const next: TeamProgramRate[] = Object.entries(byProgram)
+      .filter(([, x]) => x.on)
+      .map(([program, x]) => ({ member_id: memberId, program, pct: pct(x.pct), upsell_pct: pct(x.upsell) }));
+    const off = before.filter((b) => !next.some((n) => n.program === b.program)).map((b) => b.program);
+    if (off.length) {
+      const { error: dErr } = await supabase.from('team_program_rates').delete().eq('member_id', memberId).in('program', off);
+      if (dErr) return setError(dErr.message);
+    }
+    if (next.length) {
+      const { error: rErr } = await supabase.from('team_program_rates').upsert(next, { onConflict: 'member_id,program' });
+      if (rErr) return setError(rErr.message);
+    }
+
+    // Clientes que ya existen: asignarlo a los que no lo tienen y actualizar los que tenían el % anterior del programa.
+    if (next.length && v.active) {
+      const [clientsRes, assignedRes] = await Promise.all([
+        supabase.from('clients').select('id, program').in('program', next.map((n) => n.program)),
+        supabase.from('client_team').select('*').eq('member_id', memberId),
+      ]);
+      if (clientsRes.error || assignedRes.error) return setError((clientsRes.error ?? assignedRes.error)!.message);
+      const assigned = new Map((assignedRes.data as ClientTeam[]).map((a) => [a.client_id, a]));
+      const toAdd: ClientTeam[] = [];
+      const toUpdate: ClientTeam[] = [];
+      for (const c of clientsRes.data as { id: string; program: string }[]) {
+        const rate = next.find((n) => n.program === c.program)!;
+        const prev = before.find((b) => b.program === c.program);
+        const a = assigned.get(c.id);
+        if (!a) toAdd.push({ client_id: c.id, member_id: memberId, pct: rate.pct, upsell_pct: rate.upsell_pct });
+        else if (prev && Number(a.pct) === Number(prev.pct) && Number(a.upsell_pct) === Number(prev.upsell_pct) && (Number(a.pct) !== rate.pct || Number(a.upsell_pct) !== rate.upsell_pct))
+          toUpdate.push({ ...a, pct: rate.pct, upsell_pct: rate.upsell_pct });
+      }
+      const lines = [
+        ...(toAdd.length ? [`asignarlo a ${toAdd.length} cliente(s) que todavía no lo tienen`] : []),
+        ...(toUpdate.length ? [`actualizar el % en ${toUpdate.length} cliente(s) que ya tenía asignados`] : []),
+      ];
+      if (lines.length && window.confirm(`Clientes que ya existen en esos programas: ¿${lines.join(' y ')}? Se aplica sobre todo lo que se les cobró y se les cobre. Si cancelás, solo se aplica a los clientes nuevos.`)) {
+        const { error: aErr } = await supabase.from('client_team').upsert([...toAdd, ...toUpdate], { onConflict: 'client_id,member_id' });
         if (aErr) return setError(aErr.message);
       }
     }
@@ -456,8 +498,8 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
             {TEAM_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </Field>
-        <Field label="Comisión sobre ventas (%)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.commission_pct} onChange={set('commission_pct')} /></Field>
-        <Field label="Comisión sobre upsells (%)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.upsell_pct} onChange={set('upsell_pct')} /></Field>
+        <Field label="% por defecto sobre ventas (al asignar a mano)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.commission_pct} onChange={set('commission_pct')} /></Field>
+        <Field label="% por defecto sobre upsells (al asignar a mano)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.upsell_pct} onChange={set('upsell_pct')} /></Field>
         <Field label="Fijo mensual (USD)"><input className="field" type="number" min="0" step="1" value={v.monthly_fee} onChange={set('monthly_fee')} /></Field>
         <Field label="Reparto de ganancia (%)"><input className="field" type="number" min="0" max="100" step="0.5" value={v.profit_share_pct} onChange={set('profit_share_pct')} /></Field>
         <Field label="Desde"><input className="field" type="date" value={v.start_date} onChange={set('start_date')} /></Field>
@@ -466,15 +508,20 @@ function MemberModal({ member, onClose, onSaved }: { member: TeamMember | null; 
           <input type="checkbox" checked={v.active} onChange={(e) => setV((s) => ({ ...s, active: e.target.checked }))} /> Activo
         </label>
         <div className="afield afield--full">
-          <span className="afield__label">Se asigna solo a todos los clientes de</span>
-          <div className="chips">
-            {PROGRAMS.map((p) => (
-              <button key={p} type="button" className={`chip chip--sm${programs.includes(p) ? ' is-active' : ''}`} aria-pressed={programs.includes(p)} onClick={() => toggleProgram(p)}>{p}</button>
+          <span className="afield__label">Comisión por programa (se asigna solo a todos los clientes del programa)</span>
+          <div className="rates">
+            <div className="rates__head"><span>Programa</span><span>% ventas</span><span>% upsells</span></div>
+            {Object.entries(byProgram).map(([p, x]) => (
+              <div key={p} className={`rates__row${x.on ? '' : ' is-off'}`}>
+                <label className="check"><input type="checkbox" checked={x.on} onChange={(e) => setRate(p, { on: e.target.checked, pct: x.pct || v.commission_pct, upsell: x.upsell || v.upsell_pct })} /> {p}</label>
+                <input className="field field--num" type="number" min="0" max="100" step="0.5" value={x.pct} disabled={!x.on} onChange={(e) => setRate(p, { pct: e.target.value })} aria-label={`% sobre ventas de ${p}`} />
+                <input className="field field--num" type="number" min="0" max="100" step="0.5" value={x.upsell} disabled={!x.on} onChange={(e) => setRate(p, { upsell: e.target.value })} aria-label={`% sobre upsells de ${p}`} />
+              </div>
             ))}
           </div>
         </div>
         <p className="muted aform__note afield--full">
-          La comisión se cobra sobre lo cobrado de los clientes que tenga asignados: un % sobre las cuotas de la venta y otro sobre las de upsells. Se asignan en la ficha de cada cliente (con estos % como sugeridos) o solos, por programa. El reparto de ganancia se calcula sobre el resultado neto de cada mes.
+          La comisión se cobra sobre lo cobrado de los clientes que tenga asignados: un % sobre las cuotas de la venta y otro sobre las de upsells. Con un programa marcado, cada cliente nuevo de ese programa se le asigna solo con esos %; al guardar te ofrece aplicarlo también a los clientes que ya existen. El % de cada cliente se puede cambiar en su ficha. El reparto de ganancia se calcula sobre el resultado neto de cada mes.
         </p>
         {error && <p className="login__error afield--full">{error}</p>}
         <div className="aform__actions afield--full">
