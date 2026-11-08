@@ -1,3 +1,4 @@
+import { useLiveReload } from '../lib/realtime';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, unwrap } from '../lib/supabase';
@@ -41,6 +42,7 @@ export default function ClientDetailPage() {
   const { clientId = '' } = useParams();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(() => load(clientId), [clientId]);
+  useLiveReload(['clients', 'payments', 'client_team', 'form_responses'], reload, { delayMs: 1500 });
   const { modules } = useContent();
   const [editing, setEditing] = useState(false);
   const [paymentModal, setPaymentModal] = useState<Payment | 'new' | null>(null);

@@ -80,6 +80,7 @@ La landing reenvía cada evento server-to-server a la Edge Function `ingest`:
 - **Métricas del equipo** (`crm_team_metrics`): en Admin → Métricas, sección «Equipo de ventas» (SDR y closer, por lanzamiento y rango de fechas), y en la pestaña «Métricas» de cada panel, donde cada SDR o closer ve solo lo suyo. Cada número tiene un ⓘ que explica qué mide.
 - **Dials:** la SDR registra cada intento con «Atendió» o «No atendió» (`crm_dial(p_ll, p_delta, p_outcome)`), para el pick-up rate por llamada.
 - **Recursos:** además de los del admin, cada SDR o closer puede cargar los suyos (link o texto); los ve solo esa persona (`crm_resources.owner_id`).
+- **Tiempo real:** los paneles de SDR y closer, la ficha del lead, Leads, Métricas, Ventas, Clientes, Finanzas, Respuestas y Tareas se actualizan solos cuando otro carga algo (Supabase Realtime, respeta RLS; migración `20261108145145_realtime_crm.sql`). Las visitas de la landing no se escuchan: se ven con «Actualizar».
 - **Admin → Leads** filtra por lanzamiento, SDR, closer y estado, reasigna y reparte los leads sin SDR. **Admin → Métricas** muestra visitas, optins, calificados, aplicaciones, agendas, ventas y cash collected por SDR y por closer.
 
 ## Seguridad

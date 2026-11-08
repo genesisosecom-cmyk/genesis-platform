@@ -3,6 +3,7 @@ import { useAsync } from '../lib/useAsync';
 import { fmtDate, fmtDateTime } from '../lib/format';
 import { Pill, State } from '../admin/ui';
 import InfoTip, { WithTip } from '../components/InfoTip';
+import { useLiveReload } from '../lib/realtime';
 import {
   CLOSER_DETAIL,
   CLOSER_KEY,
@@ -38,6 +39,7 @@ export default function TeamMetricsPanel({ launchId, picker, only }: { launchId:
   const [custom, setCustom] = useState({ from: '', to: todayAR() });
   const { from, to } = rangeDates(range, custom);
   const { data, loading, error, reload } = useAsync(() => fetchTeamMetrics(launchId, from, to), [launchId, from, to]);
+  useLiveReload(['lead_events', 'lead_launches', 'sales_calls', 'payments', 'sales_reps'], reload, { delayMs: 3000 });
   const sdr = (data?.sdr ?? []).filter((r) => !isEmptyBaja(r));
   const closer = (data?.closer ?? []).filter((r) => !isEmptyBaja(r));
   const roles: Role[] = only ? [only] : data ? (['sdr', 'closer'] as Role[]).filter((r) => (r === 'sdr' ? data.sdr : data.closer).length > 0) : [];

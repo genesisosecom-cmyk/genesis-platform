@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useAsync } from '../lib/useAsync';
@@ -21,6 +21,7 @@ import {
 import { byLevel, followupDue, inList, INVESTMENT_LEVELS, LISTS, periodRange, sdrReview, type ListKey } from './model';
 import LeadCard, { type CardContext } from './LeadCard';
 import TeamMetricsPanel from './TeamMetricsPanel';
+import { changedId, useLiveReload, useRealtime, type Change } from '../lib/realtime';
 import { NewLeadModal, ResourcesModal } from './modals';
 import { CallCalendar, CommissionCards, LaunchGoal, realNumbers, ScopeToggle, Simulator } from './widgets';
 
@@ -78,7 +79,8 @@ async function load(launchId: string) {
 function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: string | null; isAdmin: boolean; picker: React.ReactNode }) {
   const { leadLaunchId } = useParams();
   const { data, loading, error, reload } = useAsync(() => load(launch.id), [launch.id]);
-  const [patched, setPatched] = useState<Record<string, LeadRow>>({});
+  // Filas actualizadas después de la carga (acciones propias o cambios en tiempo real). null = ya no se ve.
+  const [patched, setPatched] = useState<Record<string, LeadRow | null>>({});
   const [tab, setTab] = useState<Tab>('leads');
   const [list, setList] = useState<ListKey>(me ? 'mios' : 'bolsa');
   const [scope, setScope] = useState<'mine' | 'team'>(me ? 'mine' : 'team');
@@ -90,7 +92,37 @@ function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: str
 
   useEffect(() => setPatched({}), [data]);
 
-  const rows = useMemo(() => (data?.rows ?? []).map((r) => patched[r.id] ?? r), [data, patched]);
+  const rows = useMemo(() => {
+    const base = data?.rows ?? [];
+    const known = new Set(base.map((r) => r.id));
+    const updated = base.flatMap((r) => (r.id in patched ? (patched[r.id] ? [patched[r.id]!] : []) : [r]));
+    const added = Object.values(patched).filter((r): r is LeadRow => Boolean(r && !known.has(r.id)));
+    return [...added, ...updated];
+  }, [data, patched]);
+
+  // Tiempo real: cada lead que cambia se vuelve a leer solo (no se recarga la lista entera).
+  const refetchRows = async (ids: string[]) => {
+    const fresh = await Promise.all(ids.map((id) => fetchLeadRow(id).catch(() => null)));
+    setPatched((p) => ({ ...p, ...Object.fromEntries(ids.map((id, i) => [id, fresh[i] && fresh[i]!.launch_id === launch.id ? fresh[i] : null])) }));
+  };
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  useRealtime(
+    [{ table: 'lead_launches', filter: `launch_id=eq.${launch.id}` }, { table: 'leads', event: 'UPDATE' }],
+    (changes: Change[]) => {
+      const ids = new Set<string>();
+      for (const c of changes) {
+        const id = changedId(c);
+        if (!id) continue;
+        if (c.table === 'leads') rowsRef.current.filter((r) => r.lead_id === id).forEach((r) => ids.add(r.id));
+        else ids.add(id);
+      }
+      if (ids.size) refetchRows([...ids]);
+    },
+    { delayMs: 600 },
+  );
+  // Calls, pagos y meta del lanzamiento: se recarga el panel (son pocas filas).
+  useLiveReload(['sales_calls', 'payments', 'sales_reps', 'crm_agents'], reload, { delayMs: 1500 });
   const reps = data?.reps ?? [];
   const who = scope === 'mine' ? me : null;
 

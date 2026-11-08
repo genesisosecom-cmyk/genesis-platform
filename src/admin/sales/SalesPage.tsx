@@ -1,3 +1,4 @@
+import { useLiveReload } from '../../lib/realtime';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import { fmtDate, fmtMoney, todayISO } from '../../lib/format';
@@ -38,6 +39,7 @@ export default function SalesPage() {
 
 function Director({ launchId, picker }: { launchId: string; picker: ReactNode }) {
   const { data, loading, error, reload } = useAsync(() => load(launchId), [launchId]);
+  useLiveReload(['sales_calls', 'payments', 'lead_launches', 'sales_reps'], reload, { delayMs: 1500 });
   const [tab, setTab] = useState<Tab>('resumen');
   const [period, setPeriod] = useState<Period>('mes');
   const [open, setOpen] = useState<string | null>(null);

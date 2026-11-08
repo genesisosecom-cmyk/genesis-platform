@@ -23,6 +23,7 @@ import { NewLeadModal, ResourcesModal } from './modals';
 import { CallCalendar, CallPill, CommissionCards, LaunchGoal, realNumbers, ScopeToggle, Simulator } from './widgets';
 import { WhatsAppButton } from './components';
 import TeamMetricsPanel from './TeamMetricsPanel';
+import { useLiveReload } from '../lib/realtime';
 import { WithTip } from '../components/InfoTip';
 import { CALL_TIPS } from './tips';
 import { useLaunchPicker } from '../admin/leads/LeadsPage';
@@ -47,6 +48,7 @@ export default function CloserPage() {
   const { callId } = useParams();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(load, []);
+  useLiveReload(['sales_calls', 'payments', 'lead_launches', 'sales_reps'], reload, { delayMs: 1200 });
   const me = isCloser ? rep!.id : null;
   const [tab, setTab] = useState<Tab>('calendario');
   const [scope, setScope] = useState<'mine' | 'team'>(me ? 'mine' : 'team');

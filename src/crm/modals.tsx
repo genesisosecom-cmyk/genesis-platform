@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Field, Modal, Pill, State } from '../admin/ui';
 import { useAuth } from '../auth/AuthContext';
 import { useAsync } from '../lib/useAsync';
+import { useLiveReload } from '../lib/realtime';
 import type { CrmAgent, CrmResource, SalesRep } from '../lib/types';
 import { createLead, deleteOwnResource, fetchResources, localToIso, logAgents, saveOwnResource, type LeadRow } from './api';
 import { INVESTMENT_LEVELS } from './model';
@@ -76,6 +77,7 @@ export function ResourcesModal({ role, onClose }: { role: 'sdr' | 'closer'; onCl
   const { session } = useAuth();
   const me = session?.user.id ?? null;
   const resources = useAsync(fetchResources, []);
+  useLiveReload(['crm_resources'], resources.reload);
   const [copied, setCopied] = useState<string | null>(null);
   const [editing, setEditing] = useState<CrmResource | 'new' | null>(null);
   const forRole = (r: CrmResource) => r.audience === 'todos' || r.audience === role;

@@ -8,6 +8,7 @@ import { fetchAgents, fetchCallsOf, fetchLaunches, fetchLeadEvents, fetchLeadRow
 import type { SalesRep } from '../lib/types';
 import { ApplicationAnswers, CallsList, LeadSummary, Timeline } from './components';
 import LeadCard from './LeadCard';
+import { useLiveReload } from '../lib/realtime';
 
 async function load(id: string) {
   const row = await fetchLeadRow(id);
@@ -28,6 +29,10 @@ export default function LeadDetail({
 }) {
   const { rep, isSdr, isAdmin } = useAuth();
   const { data, loading, error, reload } = useAsync(() => load(leadLaunchId), [leadLaunchId]);
+  useLiveReload(
+    [{ table: 'lead_launches', filter: `id=eq.${leadLaunchId}` }, { table: 'sales_calls', filter: `lead_launch_id=eq.${leadLaunchId}` }, ...(data ? [{ table: 'lead_events', filter: `lead_id=eq.${data.row.lead_id}` }, { table: 'leads', filter: `id=eq.${data.row.lead_id}` }] : [])],
+    reload,
+  );
 
   return (
     <>

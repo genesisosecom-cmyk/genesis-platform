@@ -6,6 +6,7 @@ import { fetchCalls, fetchLeadRows, fetchSalesReps, fetchVisits, type CallRow, t
 import type { LandingVisit, SalesRep } from '../../lib/types';
 import { useLaunchPicker } from './LeadsPage';
 import TeamMetricsPanel from '../../crm/TeamMetricsPanel';
+import { useLiveReload } from '../../lib/realtime';
 
 const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : '—');
 const num = (n: number) => n.toLocaleString('es-AR');
@@ -25,6 +26,8 @@ function LaunchMetrics({ launchId, picker }: { launchId: string; picker: ReactNo
     () => Promise.all([fetchLeadRows(launchId), fetchVisits(launchId), fetchCalls({ launchId }), fetchSalesReps()]),
     [launchId],
   );
+  // Las visitas no se escuchan (cambian con cada visita a la landing); se ven con «Actualizar».
+  useLiveReload([{ table: 'lead_launches', filter: `launch_id=eq.${launchId}` }, 'sales_calls', 'sales_reps'], reload, { delayMs: 5000 });
   const [rows = [], visits = [], calls = [], reps = []] = data ?? [];
   const optins = rows.filter((r) => r.optin_at);
   const live = calls.filter((c) => c.status !== 'cancelada');
