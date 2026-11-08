@@ -1336,3 +1336,4 @@ html { scrollbar-gutter: stable; }
 @media (max-width: 720px) {
   .toolbar__right { flex-wrap: wrap; }
 }
+.admin__sound { margin-left: auto; font-size: 15px; }
