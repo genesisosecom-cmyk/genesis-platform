@@ -1,3 +1,4 @@
+import { useLiveReload } from '../../lib/realtime';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import { supabase } from '../../lib/supabase';
@@ -30,6 +31,7 @@ const monthLabel = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1]} ${m.slic
 
 export default function FinancePage() {
   const { data, loading, error, reload } = useAsync(fetchFinance, []);
+  useLiveReload(['clients', 'payments', 'expenses', 'team_members', 'team_payouts', 'client_team', 'team_program_rates'], reload, { delayMs: 1500 });
   const current = monthOf(todayISO());
   const [mode, setMode] = useState<Mode>('month');
   const [month, setMonth] = useState(current);

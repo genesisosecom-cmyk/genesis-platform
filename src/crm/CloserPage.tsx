@@ -10,7 +10,6 @@ import {
   fetchLaunches,
   fetchLaunchProgress,
   fetchLeadRows,
-  fetchResources,
   fetchSalePayments,
   fetchSalesReps,
   fetchSettings,
@@ -23,21 +22,25 @@ import CallCard from './CallCard';
 import { NewLeadModal, ResourcesModal } from './modals';
 import { CallCalendar, CallPill, CommissionCards, LaunchGoal, realNumbers, ScopeToggle, Simulator } from './widgets';
 import { WhatsAppButton } from './components';
+import TeamMetricsPanel from './TeamMetricsPanel';
+import { useLiveReload } from '../lib/realtime';
+import { WithTip } from '../components/InfoTip';
+import { CALL_TIPS } from './tips';
+import { useLaunchPicker } from '../admin/leads/LeadsPage';
 
-type Tab = 'calendario' | 'seguimientos' | 'revisar' | 'resumen';
+type Tab = 'calendario' | 'seguimientos' | 'revisar' | 'resumen' | 'metricas';
 
 async function load() {
   const launches = await fetchLaunches();
   const launch = launches.find((l) => l.is_current) ?? launches[0] ?? null;
-  const [calls, reps, resources, settings, progress] = await Promise.all([
+  const [calls, reps, settings, progress] = await Promise.all([
     fetchCalls({}),
     fetchSalesReps(),
-    fetchResources(),
     fetchSettings().catch(() => null),
     launch ? fetchLaunchProgress(launch.id) : Promise.resolve(null),
   ]);
   const payments = await fetchSalePayments(calls.filter((c) => c.result === 'cerro').map((c) => c.id));
-  return { launch, calls, reps, resources, settings, progress, payments };
+  return { launch, calls, reps, settings, progress, payments };
 }
 
 export default function CloserPage() {
@@ -45,6 +48,7 @@ export default function CloserPage() {
   const { callId } = useParams();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(load, []);
+  useLiveReload(['sales_calls', 'payments', 'lead_launches', 'sales_reps'], reload, { delayMs: 1200 });
   const me = isCloser ? rep!.id : null;
   const [tab, setTab] = useState<Tab>('calendario');
   const [scope, setScope] = useState<'mine' | 'team'>(me ? 'mine' : 'team');
@@ -87,6 +91,7 @@ export default function CloserPage() {
                   ['seguimientos', `Follow-ups · ${followups.length}`],
                   ['revisar', `Para revisar · ${review.length}`],
                   ['resumen', 'Resumen'],
+                  ['metricas', 'Métricas'],
                 ] as [Tab, string][]).map(([t, label]) => (
                   <button key={t} type="button" className={`tabs__link tabs__btn${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{label}</button>
                 ))}
@@ -117,6 +122,8 @@ export default function CloserPage() {
                 ) : <div className="state muted">Nada para revisar.</div>
               )}
 
+              {tab === 'metricas' && <CloserMetrics />}
+
               {tab === 'resumen' && <CloserSummary calls={calls} me={me} pct={Number(data.settings?.closer_commission_pct ?? 7)} />}
             </>
           )}
@@ -145,8 +152,18 @@ export default function CloserPage() {
           onCreated={() => { setCreating(false); reload(); }}
         />
       )}
-      {resourcesOpen && <ResourcesModal resources={data?.resources ?? []} role="closer" onClose={() => setResourcesOpen(false)} />}
+      {resourcesOpen && <ResourcesModal role="closer" onClose={() => setResourcesOpen(false)} />}
     </div>
+  );
+}
+
+/** Tablero de métricas del closer (el admin ve a todos los closers). */
+function CloserMetrics() {
+  const { launches, launchId, picker } = useLaunchPicker();
+  return (
+    <State loading={launches.loading} error={launches.error} empty={!launchId}>
+      {launchId && <TeamMetricsPanel launchId={launchId} picker={(launches.data?.length ?? 0) > 1 ? picker : null} only="closer" />}
+    </State>
   );
 }
 
@@ -155,7 +172,7 @@ function CallList({ calls, empty, onOpen, extra }: { calls: CallRow[]; empty: st
   return (
     <div className="glass table-wrap">
       <table className="table">
-        <thead><tr><th>Lead</th><th>WhatsApp</th><th>Call</th><th>Estado</th><th></th></tr></thead>
+        <thead><tr><th><WithTip tip={CALL_TIPS.lead}>Lead</WithTip></th><th><WithTip tip={CALL_TIPS.whatsapp}>WhatsApp</WithTip></th><th><WithTip tip={CALL_TIPS.when}>Call</WithTip></th><th><WithTip tip={CALL_TIPS.state}>Estado</WithTip></th><th>{extra && <WithTip tip={CALL_TIPS.followup}>Follow-up</WithTip>}</th></tr></thead>
         <tbody>
           {calls.map((c) => (
             <tr key={c.id} className="table__row" onClick={() => onOpen(c.id)}>

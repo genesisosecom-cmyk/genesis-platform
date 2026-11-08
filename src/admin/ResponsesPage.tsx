@@ -1,3 +1,4 @@
+import { useLiveReload } from '../lib/realtime';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAsync } from '../lib/useAsync';
@@ -12,7 +13,8 @@ const load = () => Promise.all([fetchResponses(), fetchForms()]);
 export const questionCount = (r: FormResponse) => (Array.isArray(r.answers.preguntas) ? r.answers.preguntas.length : null);
 
 export default function ResponsesPage() {
-  const { data, loading, error } = useAsync(load, []);
+  const { data, loading, error, reload } = useAsync(load, []);
+  useLiveReload(['form_responses'], reload, { delayMs: 2000 });
   const navigate = useNavigate();
   const [status, setStatus] = useState<'all' | 'unread' | 'read'>('unread');
   const [period, setPeriod] = useState<'upcoming' | 'past' | 'all'>('upcoming');

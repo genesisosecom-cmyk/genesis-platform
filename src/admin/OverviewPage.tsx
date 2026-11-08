@@ -1,3 +1,4 @@
+import { useLiveReload } from '../lib/realtime';
 import { Link } from 'react-router-dom';
 import { useAsync } from '../lib/useAsync';
 import { fetchAllProgress, fetchClients, fetchForms, fetchPayments, fetchProfiles, fetchResponses, paymentStatus } from './api';
@@ -10,7 +11,8 @@ const loadOverview = () =>
   Promise.all([fetchProfiles(), fetchAllProgress(), fetchResponses(), fetchForms(), fetchClients(), fetchPayments()]);
 
 export default function OverviewPage() {
-  const { data, loading, error } = useAsync(loadOverview, []);
+  const { data, loading, error, reload } = useAsync(loadOverview, []);
+  useLiveReload(['form_responses', 'payments', 'clients'], reload, { delayMs: 2000 });
 
   return (
     <State loading={loading} error={error}>

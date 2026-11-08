@@ -1,3 +1,4 @@
+import { useLiveReload } from '../lib/realtime';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAsync } from '../lib/useAsync';
@@ -12,6 +13,7 @@ const load = () => Promise.all([fetchClients(), fetchPayments()]);
 
 export default function ClientsPage() {
   const { data, loading, error, reload } = useAsync(load, []);
+  useLiveReload(['clients', 'payments'], reload, { delayMs: 1500 });
   const navigate = useNavigate();
   const [status, setStatus] = useState<ClientStatus | 'all' | 'overdue'>('all');
   const [query, setQuery] = useState('');

@@ -1,3 +1,4 @@
+import { useLiveReload } from '../../lib/realtime';
 import { useState, type ReactNode } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import { Kpi, State } from '../ui';
@@ -37,6 +38,7 @@ const CHIPS: Record<Chip, { label: string; test: (r: LeadRow) => boolean }> = {
 
 function LaunchLeads({ launchId, picker }: { launchId: string; picker: ReactNode }) {
   const { data, loading, error, reload } = useAsync(() => Promise.all([fetchLeadRows(launchId), fetchSalesReps()]), [launchId]);
+  useLiveReload([{ table: 'lead_launches', filter: `launch_id=eq.${launchId}` }, { table: 'leads', event: 'UPDATE' }, 'sales_reps'], reload, { delayMs: 3000 });
   const [chip, setChip] = useState<Chip>('all');
   const [sdr, setSdr] = useState('all');
   const [closer, setCloser] = useState('all');

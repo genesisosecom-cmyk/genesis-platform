@@ -30,7 +30,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
   );
 }
 
-export function Field({ label, children, full }: { label: string; children: ReactNode; full?: boolean }) {
+export function Field({ label, children, full }: { label: ReactNode; children: ReactNode; full?: boolean }) {
   return (
     <label className={`afield${full ? ' afield--full' : ''}`}>
       <span className="afield__label">{label}</span>

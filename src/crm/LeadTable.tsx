@@ -4,6 +4,10 @@ import { fmtDateTime } from '../lib/format';
 import type { SalesRep } from '../lib/types';
 import type { LeadRow } from './api';
 import { StatusPill, WhatsAppButton } from './components';
+import { WithTip } from '../components/InfoTip';
+import { LEAD_COLUMN_TIPS } from './tips';
+
+const Th = ({ children }: { children: string }) => <th><WithTip tip={LEAD_COLUMN_TIPS[children]}>{children}</WithTip></th>;
 
 const MAX_ROWS = 300;
 
@@ -19,16 +23,16 @@ export default function LeadTable({ rows, linkTo, reps }: { rows: LeadRow[]; lin
         <table className="table">
           <thead>
             <tr>
-              <th>Lead</th>
-              <th>WhatsApp</th>
-              <th>Inversión</th>
-              <th>Landing</th>
-              <th>Grupo</th>
-              <th>Aplicó</th>
-              {reps && <th>SDR</th>}
-              {reps && <th>Closer</th>}
-              <th>Estado</th>
-              <th>Próxima tarea</th>
+              <Th>Lead</Th>
+              <Th>WhatsApp</Th>
+              <Th>Inversión</Th>
+              <Th>Landing</Th>
+              <Th>Grupo</Th>
+              <Th>Aplicó</Th>
+              {reps && <Th>SDR</Th>}
+              {reps && <Th>Closer</Th>}
+              <Th>Estado</Th>
+              <Th>Próxima tarea</Th>
             </tr>
           </thead>
           <tbody>
