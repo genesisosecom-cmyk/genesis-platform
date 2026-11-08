@@ -186,6 +186,8 @@ export interface CrmResource {
   sort: number;
   active: boolean;
   created_at: string;
+  /** Dueño del recurso personal (SDR o closer). null = compartido del admin. */
+  owner_id: string | null;
 }
 
 export interface Commission {

@@ -13,7 +13,6 @@ import {
   fetchLaunchProgress,
   fetchLeadRow,
   fetchLeadRows,
-  fetchResources,
   fetchSalesReps,
   fetchSettings,
   type CallRow,
@@ -21,10 +20,11 @@ import {
 } from './api';
 import { byLevel, followupDue, inList, INVESTMENT_LEVELS, LISTS, periodRange, sdrReview, type ListKey } from './model';
 import LeadCard, { type CardContext } from './LeadCard';
+import TeamMetricsPanel from './TeamMetricsPanel';
 import { NewLeadModal, ResourcesModal } from './modals';
 import { CallCalendar, CommissionCards, LaunchGoal, realNumbers, ScopeToggle, Simulator } from './widgets';
 
-type Tab = 'leads' | 'resumen' | 'calendario';
+type Tab = 'leads' | 'resumen' | 'metricas' | 'calendario';
 
 export default function SdrPage() {
   const { rep, isSdr, isAdmin } = useAuth();
@@ -64,16 +64,15 @@ export default function SdrPage() {
 }
 
 async function load(launchId: string) {
-  const [rows, reps, agents, resources, calls, progress, settings] = await Promise.all([
+  const [rows, reps, agents, calls, progress, settings] = await Promise.all([
     fetchLeadRows(launchId),
     fetchSalesReps(),
     fetchAgents(),
-    fetchResources(),
     fetchCalls({ launchId }),
     fetchLaunchProgress(launchId),
     fetchSettings().catch(() => null),
   ]);
-  return { rows, reps, agents, resources, calls, progress, settings };
+  return { rows, reps, agents, calls, progress, settings };
 }
 
 function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: string | null; isAdmin: boolean; picker: React.ReactNode }) {
@@ -124,9 +123,9 @@ function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: str
   return (
     <>
       <nav className="tabs">
-        {(['leads', 'resumen', 'calendario'] as Tab[]).map((t) => (
+        {([['leads', 'Leads'], ['resumen', 'Resumen'], ['metricas', 'Métricas'], ['calendario', 'Calendario']] as [Tab, string][]).map(([t, label]) => (
           <button key={t} type="button" className={`tabs__link tabs__btn${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-            {t === 'leads' ? 'Leads' : t === 'resumen' ? 'Resumen' : 'Calendario'}
+            {label}
           </button>
         ))}
       </nav>
@@ -198,6 +197,8 @@ function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: str
 
         {tab === 'resumen' && data && <SdrSummary rows={rows} calls={data.calls} me={me} pct={Number(data.settings?.sdr_commission_pct ?? 3)} />}
 
+        {tab === 'metricas' && <TeamMetricsPanel launchId={launch.id} picker={picker} only="sdr" />}
+
         {tab === 'calendario' && data && (
           <>
             {me && <div className="filters"><ScopeToggle value={scope} onChange={setScope} /></div>}
@@ -222,7 +223,7 @@ function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: str
           }}
         />
       )}
-      {resourcesOpen && <ResourcesModal resources={data?.resources ?? []} role="sdr" onClose={() => setResourcesOpen(false)} />}
+      {resourcesOpen && <ResourcesModal role="sdr" onClose={() => setResourcesOpen(false)} />}
     </>
   );
 }

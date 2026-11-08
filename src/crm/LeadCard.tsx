@@ -36,6 +36,8 @@ import {
 } from './model';
 import { AgentsModal } from './modals';
 import { Timeline, WhatsAppButton } from './components';
+import InfoTip, { WithTip } from '../components/InfoTip';
+import { LEAD_TIPS as T } from './tips';
 
 export interface CardContext {
   reps: SalesRep[];
@@ -61,10 +63,10 @@ function YesNo({ value, onChange, disabled, allowNull }: { value: boolean | null
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Row({ label, tip, children }: { label: string; tip?: string; children: ReactNode }) {
   return (
     <div className="wk__row">
-      <span className="wk__label">{label}</span>
+      <span className="wk__label"><WithTip tip={tip}>{label}</WithTip></span>
       <div className="wk__ctl">{children}</div>
     </div>
   );
@@ -122,8 +124,8 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
       <header className="lcard__head" onClick={() => setOpen((o) => !o)}>
         <div className="lcard__title">
           <strong>{l.full_name || l.email || `+${l.phone}`}</strong>
-          <Pill tone={LEVEL_TONE[level]}>{LEVEL_LABEL[level]}</Pill>
-          <Pill tone="muted">{stageOf(row, ctx.launchStartsAt)}</Pill>
+          <span className="with-tip"><Pill tone={LEVEL_TONE[level]}>{LEVEL_LABEL[level]}</Pill><InfoTip text={T.level} /></span>
+          <span className="with-tip"><Pill tone="muted">{stageOf(row, ctx.launchStartsAt)}</Pill><InfoTip text={T.stage} /></span>
           {row.route === 'aplicado' && <Pill tone="ok">Aplicó</Pill>}
           {row.asked_agents && <Pill tone="accent">Pidió agentes</Pill>}
           {l.possible_duplicate && <Pill tone="warn">Posible duplicado</Pill>}
@@ -150,27 +152,28 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
           <div className="lcard__info">
             <span>📞 {l.phone ? `+${l.phone}` : '—'}</span>
             <span>✉️ {l.email ?? '—'}</span>
-            <span>Entró el {fmtDate(row.optin_at ?? row.created_at)}</span>
-            <span>{row.source ?? '—'} · versión {row.variant ?? '—'}</span>
-            <span>Grupo: {row.toco_grupo ? 'sí' : 'no'}</span>
-            {appInv && <span>Aplicación: {appInv}</span>}
+            <WithTip tip={T.optin}>Entró el {fmtDate(row.optin_at ?? row.created_at)}</WithTip>
+            <WithTip tip={T.origin}>{row.source ?? '—'} · versión {row.variant ?? '—'}</WithTip>
+            <WithTip tip={T.group}>Grupo: {row.toco_grupo ? 'sí' : 'no'}</WithTip>
+            {appInv && <WithTip tip={T.application}>Aplicación: {appInv}</WithTip>}
           </div>
 
           <section className="wk">
-            <Row label="Dials">
+            <Row label="Dials" tip={T.dials}>
               <div className="dials">
-                <button type="button" className="icon-btn" disabled={!canEdit || busy || row.contact_attempts === 0} onClick={() => run(() => dial(row.id, -1))}>−</button>
+                <button type="button" className="icon-btn" aria-label="Restar un dial" title="Corregir: restar un dial" disabled={!canEdit || busy || row.contact_attempts === 0} onClick={() => run(() => dial(row.id, -1))}>−</button>
                 <strong>{row.contact_attempts}</strong>
-                <button type="button" className="icon-btn" disabled={!canEdit || busy} onClick={() => run(() => dial(row.id, 1))}>+</button>
+                <button type="button" className="btn btn--ghost btn--sm dials__btn dials__btn--ok" disabled={!canEdit || busy} onClick={() => run(() => dial(row.id, 1, 'atendio'))}>+ Atendió</button>
+                <button type="button" className="btn btn--ghost btn--sm dials__btn" disabled={!canEdit || busy} onClick={() => run(() => dial(row.id, 1, 'no_atendio'))}>+ No atendió</button>
               </div>
             </Row>
-            <Row label="¿Contestó?"><YesNo value={row.answered} disabled={!canEdit || busy} onChange={(v) => patch({ answered: v })} /></Row>
+            <Row label="¿Contestó?" tip={T.answered}><YesNo value={row.answered} disabled={!canEdit || busy} onChange={(v) => patch({ answered: v })} /></Row>
             {row.answered && (
               <>
-                <Row label="¿Conversación real?"><YesNo value={row.real_conversation} disabled={!canEdit || busy} onChange={(v) => patch({ real_conversation: v })} /></Row>
-                <Row label="¿Califica de verdad?"><YesNo value={row.sdr_qualified} allowNull disabled={!canEdit || busy} onChange={(v) => patch({ sdr_qualified: v })} /></Row>
+                <Row label="¿Conversación real?" tip={T.realConversation}><YesNo value={row.real_conversation} disabled={!canEdit || busy} onChange={(v) => patch({ real_conversation: v })} /></Row>
+                <Row label="¿Califica de verdad?" tip={T.qualified}><YesNo value={row.sdr_qualified} allowNull disabled={!canEdit || busy} onChange={(v) => patch({ sdr_qualified: v })} /></Row>
                 {row.sdr_qualified && (
-                  <Row label="¿Está listo?">
+                  <Row label="¿Está listo?" tip={T.readiness}>
                     <div className="seg">
                       {(['listo', 'nutricion'] as const).map((k) => (
                         <button key={k} type="button" disabled={!canEdit || busy} className={`seg__opt${row.readiness === k ? ' is-on' : ''}`} onClick={() => patch({ readiness: k })}>
@@ -182,11 +185,11 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
                 )}
               </>
             )}
-            <Row label="Pidió agentes">
+            <Row label="Pidió agentes" tip={T.askedAgents}>
               <YesNo value={row.asked_agents} disabled={!canEdit || busy} onChange={(v) => patch({ asked_agents: Boolean(v) })} />
             </Row>
             <label className="afield">
-              <span className="afield__label">Notas (las ve el closer)</span>
+              <span className="afield__label"><WithTip tip={T.notes}>Notas (las ve el closer)</WithTip></span>
               <textarea
                 className="field field--area"
                 rows={2}
@@ -206,23 +209,27 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
                   {row.sdr_qualified && row.readiness !== 'nutricion' && (
                     <>
                       <button className="btn btn--primary btn--sm" onClick={() => setPanel(panel === 'agendar' ? null : 'agendar')}>¡Lo agendé!</button>
+                      <InfoTip text={T.book} />
                       {row.agendo !== false && <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => patch({ agendo: false })}>No agendó</button>}
                     </>
                   )}
-                  {inFollowup(row) && <button className="btn btn--ghost btn--sm" onClick={() => setPanel(panel === 'seguimiento' ? null : 'seguimiento')}>Seguimiento</button>}
-                  <button className="btn btn--ghost btn--sm" onClick={() => setPanel(panel === 'finalizar' ? null : 'finalizar')}>Finalizar</button>
+                  {inFollowup(row) && <span className="with-tip"><button className="btn btn--ghost btn--sm" onClick={() => setPanel(panel === 'seguimiento' ? null : 'seguimiento')}>Seguimiento</button><InfoTip text={T.followup} /></span>}
+                  <span className="with-tip"><button className="btn btn--ghost btn--sm" onClick={() => setPanel(panel === 'finalizar' ? null : 'finalizar')}>Finalizar</button><InfoTip text={T.finalize} /></span>
                 </>
               )}
               {isFinalized(row) && <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => run(() => reopenLead(row.id))}>Reabrir</button>}
               {isNoCuenta(row) ? (
                 <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => run(() => setNoCuenta(row.id, null))}>Vuelve a contar</button>
               ) : (
-                <button className="btn btn--ghost btn--sm" onClick={() => setPanel(panel === 'no_cuenta' ? null : 'no_cuenta')}>No cuenta</button>
+                <span className="with-tip"><button className="btn btn--ghost btn--sm" onClick={() => setPanel(panel === 'no_cuenta' ? null : 'no_cuenta')}>No cuenta</button><InfoTip text={T.noCuenta} /></span>
               )}
               {l.sdr_id && (
-                <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => window.confirm('¿Liberar el lead? Vuelve a "Por asignar".') && run(() => releaseLead(row.id))}>
-                  Liberar
-                </button>
+                <span className="with-tip">
+                  <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => window.confirm('¿Liberar el lead? Vuelve a "Por asignar".') && run(() => releaseLead(row.id))}>
+                    Liberar
+                  </button>
+                  <InfoTip text={T.release} />
+                </span>
               )}
             </div>
           )}
@@ -284,9 +291,12 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
 
           {error && <p className="state--error">{error}</p>}
 
-          <button type="button" className="link link--btn" onClick={toggleEvents}>
-            {showEvents ? '▾' : '▸'} Recorrido{events ? ` (${events.length})` : ''}
-          </button>
+          <span className="with-tip">
+            <button type="button" className="link link--btn" onClick={toggleEvents}>
+              {showEvents ? '▾' : '▸'} Recorrido{events ? ` (${events.length})` : ''}
+            </button>
+            <InfoTip text={T.timeline} />
+          </span>
           {showEvents && (events ? <Timeline events={events} /> : <p className="muted">Cargando…</p>)}
         </div>
       )}

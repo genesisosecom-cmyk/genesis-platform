@@ -16,7 +16,7 @@ export default function CrmConfigPage() {
       {settings && <Distribution settings={settings} onSaved={reload} />}
       <Launches launches={launches} onSaved={reload} />
       <Agents agents={agents} onSaved={reload} />
-      <Resources resources={resources} onSaved={reload} />
+      <Resources resources={resources.filter((r) => !r.owner_id)} onSaved={reload} />
     </State>
   );
 }

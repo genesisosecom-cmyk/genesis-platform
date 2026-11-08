@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { Field, Modal } from '../admin/ui';
+import { Field, Modal, Pill, State } from '../admin/ui';
+import { useAuth } from '../auth/AuthContext';
+import { useAsync } from '../lib/useAsync';
 import type { CrmAgent, CrmResource, SalesRep } from '../lib/types';
-import { createLead, localToIso, logAgents, type LeadRow } from './api';
+import { createLead, deleteOwnResource, fetchResources, localToIso, logAgents, saveOwnResource, type LeadRow } from './api';
 import { INVESTMENT_LEVELS } from './model';
 
 const MAX_AGENTS = 3;
@@ -69,33 +71,133 @@ export function AgentsModal({ row, agents, onClose, onSent }: { row: LeadRow; ag
   );
 }
 
-/** Links y guiones que carga el admin. */
-export function ResourcesModal({ resources, role, onClose }: { resources: CrmResource[]; role: 'sdr' | 'closer'; onClose: () => void }) {
+/** Biblioteca de recursos: los compartidos que carga el admin y los propios de cada SDR o closer. */
+export function ResourcesModal({ role, onClose }: { role: 'sdr' | 'closer'; onClose: () => void }) {
+  const { session } = useAuth();
+  const me = session?.user.id ?? null;
+  const resources = useAsync(fetchResources, []);
   const [copied, setCopied] = useState<string | null>(null);
-  const list = resources.filter((r) => r.active && (r.audience === 'todos' || r.audience === role));
+  const [editing, setEditing] = useState<CrmResource | 'new' | null>(null);
+  const forRole = (r: CrmResource) => r.audience === 'todos' || r.audience === role;
+  const all = resources.data ?? [];
+  // Propios primero; después los compartidos activos de este panel.
+  const mine = all.filter((r) => me && r.owner_id === me && forRole(r));
+  const shared = all.filter((r) => !r.owner_id && r.active && forRole(r));
+  const list = [...mine, ...shared];
   const copy = async (r: CrmResource) => {
     await navigator.clipboard.writeText(r.body ?? '');
     setCopied(r.id);
     setTimeout(() => setCopied(null), 1500);
   };
+
+  if (editing && me)
+    return (
+      <OwnResourceForm
+        resource={editing === 'new' ? null : editing}
+        ownerId={me}
+        role={role}
+        onClose={() => setEditing(null)}
+        onSaved={() => { setEditing(null); resources.reload(); }}
+      />
+    );
+
   return (
     <Modal title="Recursos" onClose={onClose} wide>
-      {list.length === 0 && <p className="muted">Todavía no hay recursos cargados.</p>}
-      <div className="stack">
-        {list.map((r) => (
-          <section key={r.id} className="glass panel">
-            <div className="panel__head">
-              <h3 className="panel__title">{r.title}</h3>
-              {r.kind === 'link' && r.url ? (
-                <a className="btn btn--ghost btn--sm" href={r.url} target="_blank" rel="noopener noreferrer">Abrir</a>
-              ) : (
-                <button className="btn btn--ghost btn--sm" onClick={() => copy(r)}>{copied === r.id ? '¡Copiado!' : 'Copiar'}</button>
-              )}
-            </div>
-            {r.kind === 'guion' && <p className="notes">{r.body}</p>}
-          </section>
-        ))}
+      <div className="toolbar" style={{ marginBottom: 16 }}>
+        <p className="muted" style={{ margin: 0 }}>Los del admin los ve todo el equipo. Los tuyos (Mío) solo los ves vos.</p>
+        {me && <button className="btn btn--primary btn--sm" onClick={() => setEditing('new')}>+ Agregar recurso</button>}
       </div>
+      <State loading={resources.loading} error={resources.error}>
+        {list.length === 0 && <p className="muted">Todavía no hay recursos cargados.</p>}
+        <div className="stack">
+          {list.map((r) => {
+            const own = Boolean(me && r.owner_id === me);
+            return (
+              <section key={r.id} className="glass panel">
+                <div className="panel__head">
+                  <h3 className="panel__title res__title">
+                    {r.title}
+                    {own && <Pill tone="accent">Mío</Pill>}
+                  </h3>
+                  <div className="res__btns">
+                    {r.kind === 'link' && r.url ? (
+                      <a className="btn btn--ghost btn--sm" href={r.url} target="_blank" rel="noopener noreferrer">Abrir</a>
+                    ) : (
+                      <button className="btn btn--ghost btn--sm" onClick={() => copy(r)}>{copied === r.id ? '¡Copiado!' : 'Copiar'}</button>
+                    )}
+                    {own && <button className="btn btn--ghost btn--sm" onClick={() => setEditing(r)}>Editar</button>}
+                  </div>
+                </div>
+                {r.kind === 'guion' && <p className="notes">{r.body}</p>}
+                {r.kind === 'link' && own && r.url && <p className="muted res__url">{r.url}</p>}
+              </section>
+            );
+          })}
+        </div>
+      </State>
+    </Modal>
+  );
+}
+
+/** Alta y edición de un recurso propio: título, tipo (link o texto) y el link o el texto. */
+function OwnResourceForm({ resource, ownerId, role, onClose, onSaved }: { resource: CrmResource | null; ownerId: string; role: 'sdr' | 'closer'; onClose: () => void; onSaved: () => void }) {
+  const [v, setV] = useState({ title: resource?.title ?? '', kind: resource?.kind ?? ('link' as CrmResource['kind']), url: resource?.url ?? '', body: resource?.body ?? '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      onSaved();
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!v.title.trim()) return setError('Poné un título.');
+    let url = v.url.trim();
+    if (v.kind === 'link') {
+      if (!url) return setError('Pegá el link.');
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    } else if (!v.body.trim()) return setError('Escribí el texto.');
+    run(() => saveOwnResource(resource?.id ?? null, ownerId, role, {
+      title: v.title.trim(),
+      kind: v.kind,
+      url: v.kind === 'link' ? url : null,
+      body: v.kind === 'guion' ? v.body : null,
+    }));
+  };
+
+  const remove = () => resource && window.confirm(`¿Borrar "${resource.title}"?`) && run(() => deleteOwnResource(resource.id, ownerId));
+
+  return (
+    <Modal title={resource ? 'Editar recurso' : 'Agregar recurso'} onClose={onClose}>
+      <form className="aform" onSubmit={submit}>
+        <Field label="Título" full><input className="field" value={v.title} onChange={(e) => setV((s) => ({ ...s, title: e.target.value }))} placeholder="Ej: Mi guion de apertura" autoFocus /></Field>
+        <div className="afield afield--full">
+          <span className="afield__label">Tipo</span>
+          <div className="seg">
+            <button type="button" className={`seg__opt${v.kind === 'link' ? ' is-on' : ''}`} onClick={() => setV((s) => ({ ...s, kind: 'link' }))}>Link</button>
+            <button type="button" className={`seg__opt${v.kind === 'guion' ? ' is-on' : ''}`} onClick={() => setV((s) => ({ ...s, kind: 'guion' }))}>Texto</button>
+          </div>
+        </div>
+        {v.kind === 'link' ? (
+          <Field label="Link" full><input className="field" type="url" inputMode="url" value={v.url} onChange={(e) => setV((s) => ({ ...s, url: e.target.value }))} placeholder="https://…" /></Field>
+        ) : (
+          <Field label="Texto" full><textarea className="field field--area" rows={6} value={v.body} onChange={(e) => setV((s) => ({ ...s, body: e.target.value }))} placeholder="Guion, respuesta a objeciones, mensaje para copiar…" /></Field>
+        )}
+        {error && <p className="login__error afield--full">{error}</p>}
+        <div className="aform__actions afield--full">
+          {resource && <button type="button" className="btn btn--danger" disabled={busy} onClick={remove}>Borrar</button>}
+          <button type="button" className="btn btn--ghost" onClick={onClose}>Volver</button>
+          <button className="btn btn--primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
+        </div>
+      </form>
     </Modal>
   );
 }

@@ -20,6 +20,10 @@ import {
 import { callState } from './model';
 import { CallPill } from './widgets';
 import { WhatsAppButton } from './components';
+import { WithTip } from '../components/InfoTip';
+import { CALL_TIPS as T } from './tips';
+
+const Label = ({ children, tip }: { children: string; tip: string }) => <span className="afield__label"><WithTip tip={tip}>{children}</WithTip></span>;
 
 const METHODS = ['Stripe', 'Mercado Pago', 'Transferencia', 'PayPal', 'Cripto', 'Efectivo'];
 
@@ -168,13 +172,14 @@ export default function CallCard({
 
       {(call.sdr_note || r.sdr_notes) && (
         <section className="callcard__notes">
-          <span className="afield__label">Notas del SDR</span>
+          <Label tip={T.sdrNotes}>Notas del SDR</Label>
           <p className="notes">{[call.sdr_note, r.sdr_notes && r.sdr_notes !== call.sdr_note ? r.sdr_notes : null].filter(Boolean).join('\n\n')}</p>
         </section>
       )}
 
       {canEdit && (st === 'pendiente' || st === 'sinmarcar') && (
         <div className="lcard__actions">
+          <Label tip={T.attendance}>Asistencia</Label>
           <button className="btn btn--primary btn--sm" disabled={busy} onClick={() => run(() => markAttendance(call.id, 'se_presento'))}>Se presentó</button>
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => run(() => markAttendance(call.id, 'no_show'))}>No-show</button>
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => run(() => markAttendance(call.id, 'cancelo'))}>Canceló</button>
@@ -184,6 +189,7 @@ export default function CallCard({
 
       {canEdit && (st === 'se_presento' || st === 'seguimiento') && (
         <div className="lcard__actions">
+          <Label tip={T.result}>Resultado</Label>
           <button className={`btn btn--sm ${mode === 'cerro' ? 'btn--primary' : 'btn--ghost'}`} onClick={() => setMode('cerro')}>Cerró</button>
           <button className={`btn btn--sm ${mode === 'seguimiento' ? 'btn--primary' : 'btn--ghost'}`} onClick={() => setMode('seguimiento')}>Seguimiento</button>
           <button className={`btn btn--sm ${mode === 'no_cerro' ? 'btn--primary' : 'btn--ghost'}`} onClick={() => setMode('no_cerro')}>No cerró</button>
@@ -209,7 +215,7 @@ export default function CallCard({
 
       {mode === 'seguimiento' && (
         <div className="aform">
-          <Field label="Próximo contacto"><input className="field" type="datetime-local" value={fuAt} onChange={(e) => setFuAt(e.target.value)} /></Field>
+          <Field label={<WithTip tip={T.followupAt}>Próximo contacto</WithTip>}><input className="field" type="datetime-local" value={fuAt} onChange={(e) => setFuAt(e.target.value)} /></Field>
           <Field label="Nota"><input className="field" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Qué quedó pendiente" /></Field>
           <div className="aform__actions afield--full">
             <button className="btn btn--primary" disabled={busy || !fuAt} onClick={() => run(() => recordCallResult(call.id, { result: 'seguimiento', note, followupAt: localToIso(fuAt) }))}>Guardar seguimiento</button>
@@ -219,7 +225,7 @@ export default function CallCard({
 
       {mode === 'no_cerro' && (
         <div className="aform">
-          <Field label="Por qué no cerró" full><textarea className="field field--area" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+          <Field label={<WithTip tip={T.noCloseNote}>Por qué no cerró</WithTip>} full><textarea className="field field--area" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
           <div className="aform__actions afield--full">
             <button className="btn btn--primary" disabled={busy} onClick={() => run(() => recordCallResult(call.id, { result: 'no_cerro', note }))}>Guardar</button>
           </div>
@@ -228,12 +234,12 @@ export default function CallCard({
 
       {mode === 'cerro' && (
         <div className="aform">
-          <Field label="Programa"><input className="field" list="programs-crm" value={program} onChange={(e) => setProgram(e.target.value)} placeholder="Genesis OS, Genesis OG…" /></Field>
+          <Field label={<WithTip tip={T.program}>Programa</WithTip>}><input className="field" list="programs-crm" value={program} onChange={(e) => setProgram(e.target.value)} placeholder="Genesis OS, Genesis OG…" /></Field>
           <datalist id="programs-crm">{['Genesis OS', 'Genesis OG', 'Genesis Lite'].map((p) => <option key={p} value={p} />)}</datalist>
-          <Field label="Monto de la venta"><input className="field" type="number" min="0" step="0.01" value={total} onChange={(e) => { setTotal(e.target.value); setQuotas(null); }} /></Field>
-          <Field label="Moneda"><input className="field" value={currency} maxLength={3} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></Field>
+          <Field label={<WithTip tip={T.amount}>Monto de la venta</WithTip>}><input className="field" type="number" min="0" step="0.01" value={total} onChange={(e) => { setTotal(e.target.value); setQuotas(null); }} /></Field>
+          <Field label={<WithTip tip={T.currency}>Moneda</WithTip>}><input className="field" value={currency} maxLength={3} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></Field>
           <div className="afield--full">
-            <span className="afield__label">Pagos de hoy (se puede dividir en varios medios) · comprobante opcional</span>
+            <Label tip={T.payments}>Pagos de hoy (se puede dividir en varios medios) · comprobante opcional</Label>
             <datalist id="pay-methods">{METHODS.map((m) => <option key={m} value={m} />)}</datalist>
             {pays.map((p, i) => (
               <div key={i}>
@@ -243,9 +249,7 @@ export default function CallCard({
             <button type="button" className="link link--btn" onClick={() => setPays((ps) => [...ps, { ...emptyPay(), method: 'Mercado Pago' }])}>+ Otro medio de pago</button>
           </div>
           <div className="afield--full">
-            <span className="afield__label">
-              Falta {fmtMoney(Math.max(0, (Number(total) || 0) - saleCollected), currency)} · cuotas cada 30 días
-            </span>
+            <Label tip={T.quotas}>{`Falta ${fmtMoney(Math.max(0, (Number(total) || 0) - saleCollected), currency)} · cuotas cada 30 días`}</Label>
             <div className="filters">
               <input className="field field--num" type="number" min="0" max="24" value={quotaCount} onChange={(e) => { setQuotaCount(Number(e.target.value)); setQuotas(null); }} aria-label="Cantidad de cuotas" />
               <span className="muted">cuotas</span>
@@ -258,7 +262,7 @@ export default function CallCard({
               </div>
             ))}
           </div>
-          <Field label="Nota" full><input className="field" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Acuerdos, plan de pagos…" /></Field>
+          <Field label={<WithTip tip={T.saleNote}>Nota</WithTip>} full><input className="field" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Acuerdos, plan de pagos…" /></Field>
           <p className="muted afield--full">Se crea el cliente en Clientes y pagos (o se usa el que ya existe con el mismo mail o teléfono) con los pagos y las cuotas.</p>
           <div className="aform__actions afield--full">
             <button className="btn btn--primary" disabled={busy} onClick={saveSale}>{busy ? 'Guardando…' : 'Guardar venta'}</button>
@@ -268,6 +272,7 @@ export default function CallCard({
 
       {st === 'cerro' && (
         <section className="callcard__sale">
+          <Label tip={T.sale}>Venta</Label>
           <div className="kpis kpis--3">
             <div className="glass kpi"><span className="eyebrow">Venta</span><span className="kpi__value">{fmtMoney(Number(call.amount_total), call.currency)}</span><span className="muted kpi__hint">{call.program ?? '—'}</span></div>
             <div className="glass kpi kpi--ok"><span className="eyebrow">Cobrado</span><span className="kpi__value">{fmtMoney(paidSum, call.currency)}</span></div>

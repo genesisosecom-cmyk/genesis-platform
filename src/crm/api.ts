@@ -162,7 +162,10 @@ export type LeadPatch = Partial<Pick<LeadLaunch, 'answered' | 'real_conversation
 
 export const claimLead = (id: string) => rpc('crm_claim', { p_ll: id });
 export const releaseLead = (id: string) => rpc('crm_release', { p_ll: id });
-export const dial = (id: string, delta: 1 | -1) => rpc<number>('crm_dial', { p_ll: id, p_delta: delta });
+export type DialOutcome = 'atendio' | 'no_atendio';
+/** Suma (o corrige) un dial. Al sumar, `outcome` dice si atendió: queda en el evento para el pick-up rate por llamada. */
+export const dial = (id: string, delta: 1 | -1, outcome?: DialOutcome) =>
+  rpc<number>('crm_dial', delta > 0 && outcome ? { p_ll: id, p_delta: delta, p_outcome: outcome } : { p_ll: id, p_delta: delta });
 export const updateLead = (id: string, patch: LeadPatch) => rpc('crm_update_lead', { p_ll: id, p: patch });
 export const followupDone = (id: string, responded: boolean, note: string) =>
   rpc('crm_followup_done', { p_ll: id, p_responded: responded, p_note: note });
@@ -206,6 +209,23 @@ export const fetchAgents = async () =>
 
 export const fetchResources = async () =>
   unwrap(await supabase.from('crm_resources').select('*').order('sort').order('title')) as CrmResource[];
+
+/** Recurso propio de una SDR o un closer (la base solo deja crear con owner_id = el usuario). */
+export interface OwnResourceInput {
+  title: string;
+  kind: CrmResource['kind'];
+  url: string | null;
+  body: string | null;
+}
+
+export async function saveOwnResource(id: string | null, ownerId: string, role: 'sdr' | 'closer', v: OwnResourceInput) {
+  if (id) unwrap(await supabase.from('crm_resources').update(v).eq('id', id).eq('owner_id', ownerId));
+  else unwrap(await supabase.from('crm_resources').insert({ ...v, owner_id: ownerId, audience: role }));
+}
+
+export async function deleteOwnResource(id: string, ownerId: string) {
+  unwrap(await supabase.from('crm_resources').delete().eq('id', id).eq('owner_id', ownerId));
+}
 
 export type { Cadence };
 

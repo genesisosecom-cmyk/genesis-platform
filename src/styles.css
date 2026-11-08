@@ -1274,3 +1274,65 @@ html { scrollbar-gutter: stable; }
 .rates__row.is-off .check { color: var(--muted); }
 .ct-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ct-row .field--num { width: 76px; padding: 6px 10px; }
+
+/* =====================================================================
+   Ícono ⓘ con explicación (InfoTip)
+   ===================================================================== */
+.with-tip { display: inline-flex; align-items: center; gap: 6px; }
+.infotip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; flex: none;
+  background: none; border: none; border-radius: 50%;
+  color: var(--muted); font-size: 13px; line-height: 1; cursor: help;
+  text-transform: none; letter-spacing: 0;
+  transition: color 0.2s;
+  /* Área de toque más grande que el ícono en el celular */
+  position: relative;
+}
+.infotip::after { content: ''; position: absolute; inset: -8px; }
+.infotip:hover, .infotip.is-open, .infotip:focus-visible { color: var(--accent); }
+.infotip:focus-visible { outline: 1px solid var(--accent-line); outline-offset: 2px; }
+.infotip__bubble {
+  position: fixed; z-index: 1000;
+  padding: 10px 12px; border-radius: 10px;
+  background: #1b130d; border: 1px solid var(--accent-line);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  color: var(--text); font-size: 13px; line-height: 1.45; font-weight: 400;
+  text-transform: none; letter-spacing: 0; text-align: left; white-space: normal;
+  pointer-events: auto;
+}
+
+/* ---------- Métricas del equipo de ventas ---------- */
+.tm__dates { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tm__dates .field { width: auto; padding: 8px 12px; }
+.tm__card { gap: 18px; }
+.tm__key { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.tm__kpi { padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, 0.02); gap: 6px; }
+.tm__kpi .eyebrow { font-size: 10px; }
+.tm__detail { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 28px; }
+.tm__group-title { margin: 6px 0 2px; font-size: 11px; font-weight: 400; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.tm__sub dt { padding-left: 14px; font-size: 13px; }
+.tm__sub { padding: 5px 0; font-size: 13px; }
+.tm__foot { margin-top: 16px; font-size: 12px; }
+@media (max-width: 1100px) { .tm__key { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) {
+  .tm__key { grid-template-columns: 1fr 1fr; }
+  .tm__kpi .kpi__value { font-size: 22px; }
+  .tm__detail { grid-template-columns: 1fr; }
+}
+.dials { flex-wrap: wrap; }
+.dials__btn--ok { color: #e9b38f; border-color: rgba(233, 179, 143, 0.35); }
+.res__title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; overflow-wrap: anywhere; }
+.res__btns { display: flex; gap: 6px; flex: none; }
+.res__url { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .tm__range { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .tm__range .seg__opt { text-align: center; }
+  .tm__range .seg__opt:nth-child(odd) { border-left: none; }
+  .tm__range .seg__opt:nth-child(n + 3) { border-top: 1px solid var(--line); }
+}
+/* En el celular las barras de acciones bajan de línea en vez de salirse de la pantalla. */
+.two-col > * { min-width: 0; }
+@media (max-width: 720px) {
+  .toolbar__right { flex-wrap: wrap; }
+}

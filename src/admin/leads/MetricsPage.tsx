@@ -5,6 +5,7 @@ import { Kpi, State } from '../ui';
 import { fetchCalls, fetchLeadRows, fetchSalesReps, fetchVisits, type CallRow, type LeadRow } from '../../crm/api';
 import type { LandingVisit, SalesRep } from '../../lib/types';
 import { useLaunchPicker } from './LeadsPage';
+import TeamMetricsPanel from '../../crm/TeamMetricsPanel';
 
 const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : '—');
 const num = (n: number) => n.toLocaleString('es-AR');
@@ -65,6 +66,9 @@ function LaunchMetrics({ launchId, picker }: { launchId: string; picker: ReactNo
           Las visitas no se dividen por SDR: pasan antes de que el lead tenga uno. Las ventas se atribuyen al SDR actual del lead. Montos en USD (no convierte otras monedas).
         </p>
       </State>
+
+      <h2 className="section-title" id="equipo-de-ventas">Equipo de ventas</h2>
+      <TeamMetricsPanel launchId={launchId} picker={picker} />
     </>
   );
 }

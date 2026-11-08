@@ -77,6 +77,9 @@ La landing reenvía cada evento server-to-server a la Edge Function `ingest`:
 - **Panel SDR** (`/sdr`): sus leads ordenados por prioridad (aplicaron y califican primero), WhatsApp, estado post-clase, notas, próxima tarea y agenda con closer.
 - **Panel closer** (`/closer`): llamadas de hoy, próximas y pasadas sin resultado. Al cerrar carga monto, cobrado, medio de pago y comprobante (bucket privado `receipts`); se crea el cliente en Clientes y pagos o se le suma el pago si ya existía con el mismo email o teléfono.
 - SDRs y closers ven solo su panel, no el campus. Leen únicamente sus leads (RLS) y todas las acciones pasan por las funciones `crm_*` de la base, que validan permisos y dejan el historial con autor y fecha.
+- **Métricas del equipo** (`crm_team_metrics`): en Admin → Métricas, sección «Equipo de ventas» (SDR y closer, por lanzamiento y rango de fechas), y en la pestaña «Métricas» de cada panel, donde cada SDR o closer ve solo lo suyo. Cada número tiene un ⓘ que explica qué mide.
+- **Dials:** la SDR registra cada intento con «Atendió» o «No atendió» (`crm_dial(p_ll, p_delta, p_outcome)`), para el pick-up rate por llamada.
+- **Recursos:** además de los del admin, cada SDR o closer puede cargar los suyos (link o texto); los ve solo esa persona (`crm_resources.owner_id`).
 - **Admin → Leads** filtra por lanzamiento, SDR, closer y estado, reasigna y reparte los leads sin SDR. **Admin → Métricas** muestra visitas, optins, calificados, aplicaciones, agendas, ventas y cash collected por SDR y por closer.
 
 ## Seguridad
