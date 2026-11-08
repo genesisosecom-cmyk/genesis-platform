@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useTeamHome } from '../auth/RequireAuth';
 import { Logout } from './Icons';
+import { LeadSoundToggle } from './NewLeadSound';
 
 export const SECTIONS = [
   { to: '/avance', label: 'Tu avance' },
@@ -47,6 +48,7 @@ export default function AppLayout() {
           )}
         </nav>
         <div className="topbar__user">
+          <LeadSoundToggle />
           <span className="avatar" title={profile?.email}>
             {(profile?.full_name || profile?.email || '?').charAt(0).toUpperCase()}
           </span>

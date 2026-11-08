@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType, type SVGProps } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { LeadSoundToggle } from '../components/NewLeadSound';
 import {
   Bars,
   Book,
@@ -185,6 +186,7 @@ export default function AdminLayout() {
             <span className="eyebrow">{current?.group ?? 'Superadmin'}</span>
             <h1 className="admin__title">{current?.label ?? 'Panel de control'}</h1>
           </div>
+          <LeadSoundToggle className="icon-btn admin__sound" />
         </header>
         <div className="admin__content fade-in" key={current?.to}>
           <Outlet />

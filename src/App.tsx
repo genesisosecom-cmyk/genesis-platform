@@ -32,6 +32,7 @@ import TasksPage from './admin/tasks/TasksPage';
 import SdrPage from './crm/SdrPage';
 import CloserPage from './crm/CloserPage';
 import FullScreenMessage from './components/FullScreenMessage';
+import NewLeadSound from './components/NewLeadSound';
 import { isSupabaseConfigured } from './lib/supabase';
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
   return (
     <>
       <AmbientBackground />
+      <NewLeadSound />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/actualizar-clave" element={<UpdatePasswordPage />} />
