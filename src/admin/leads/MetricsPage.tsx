@@ -1,206 +1,119 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { fmtMoney } from '../../lib/format';
-import { Kpi, State } from '../ui';
-import { fetchCalls, fetchLeadRows, fetchSalesReps, fetchVisits, type CallRow, type LeadRow } from '../../crm/api';
-import type { LandingVisit, SalesRep } from '../../lib/types';
+import { fmtDate, fmtDateTime } from '../../lib/format';
+import { State } from '../ui';
 import { useLaunchPicker } from './LeadsPage';
 import TeamMetricsPanel from '../../crm/TeamMetricsPanel';
 import { useLiveReload } from '../../lib/realtime';
+import { rangeDates, todayAR, type RangeKey } from '../../crm/teamMetrics';
+import { fetchAdsMetrics } from '../metrics/api';
+import { fetchMeta, type MetaState } from '../metrics/meta';
+import { AfterSection, AnswersSection, PautaSection, SalesSection, SectionTitle, SourcesSection, VersionsSection } from '../metrics/sections';
+import { AdsSection, MetaNotice, TrafficSection } from '../metrics/AdsSection';
 
-const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : '—');
-const num = (n: number) => n.toLocaleString('es-AR');
-const money = (n: number) => fmtMoney(n, 'USD');
+const RANGES: [RangeKey, string][] = [
+  ['hoy', 'Hoy'],
+  ['7dias', '7 días'],
+  ['todo', 'Todo el lanzamiento'],
+  ['custom', 'Personalizado'],
+];
+
+const SECTIONS: [string, string, string][] = [
+  ['pauta', 'Cómo viene la pauta', 'Registros, visitas y conversión del período; con Meta conectado, también inversión y costos.'],
+  ['trafico', 'Cómo baja el tráfico', 'De las impresiones a los que entran al grupo, solo pauta: qué % sigue en cada paso.'],
+  ['anuncios', 'Anuncios', 'Como el Administrador de anuncios, pero con lo que pasa después del clic.'],
+  ['versiones', 'Test de versiones', 'Cómo convierte cada versión de la landing (1, 2 y 3).'],
+  ['fuentes', 'De dónde vienen los opt-ins', 'Visitas y registros por fuente de tráfico.'],
+  ['respuestas', 'Qué respondieron', 'Inversión diaria y país de los registros de pauta.'],
+  ['despues', 'Después del registro', 'Cómo avanzan los registros con el equipo de ventas.'],
+  ['ventas', 'Ventas', 'Ventas del lanzamiento por programa y cuotas por cobrar.'],
+];
 
 export default function MetricsPage() {
   const { launches, launchId, picker } = useLaunchPicker();
+  const [range, setRange] = useState<RangeKey>('todo');
+  const [custom, setCustom] = useState({ from: '', to: todayAR() });
+  const { from, to } = rangeDates(range, custom);
   return (
     <State loading={launches.loading} error={launches.error} empty={!launchId}>
-      {launchId && <LaunchMetrics key={launchId} launchId={launchId} picker={picker} />}
+      {launchId && (
+        <>
+          <div className="toolbar mx__filters">
+            <div className="filters" style={{ marginBottom: 0 }}>
+              {picker}
+              <div className="seg tm__range">
+                {RANGES.map(([k, label]) => (
+                  <button key={k} type="button" className={`seg__opt${range === k ? ' is-on' : ''}`} onClick={() => setRange(k)}>{label}</button>
+                ))}
+              </div>
+              {range === 'custom' && (
+                <div className="tm__dates">
+                  <input className="field" type="date" aria-label="Desde" value={custom.from} max={custom.to || undefined} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} />
+                  <span className="muted">a</span>
+                  <input className="field" type="date" aria-label="Hasta" value={custom.to} min={custom.from || undefined} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} />
+                </div>
+              )}
+            </div>
+          </div>
+          <nav className="mx__nav" aria-label="Secciones">
+            {SECTIONS.map(([id, label]) => <a key={id} className="chip chip--sm" href={`#${id}`}>{label}</a>)}
+          </nav>
+          <LaunchMetrics key={`${launchId}|${from}|${to}`} launchId={launchId} from={from} to={to} />
+        </>
+      )}
     </State>
   );
 }
 
-function LaunchMetrics({ launchId, picker }: { launchId: string; picker: ReactNode }) {
-  const { data, loading, error, reload } = useAsync(
-    () => Promise.all([fetchLeadRows(launchId), fetchVisits(launchId), fetchCalls({ launchId }), fetchSalesReps()]),
-    [launchId],
-  );
-  // Las visitas no se escuchan (cambian con cada visita a la landing); se ven con «Actualizar».
-  useLiveReload([{ table: 'lead_launches', filter: `launch_id=eq.${launchId}` }, 'sales_calls', 'sales_reps'], reload, { delayMs: 5000 });
-  const [rows = [], visits = [], calls = [], reps = []] = data ?? [];
-  const optins = rows.filter((r) => r.optin_at);
-  const live = calls.filter((c) => c.status !== 'cancelada');
-  const sales = live.filter((c) => c.result === 'cerro');
-  const totalVisits = visits.reduce((s, v) => s + v.visits, 0);
+function LaunchMetrics({ launchId, from, to }: { launchId: string; from: string | null; to: string | null }) {
+  const ads = useAsync(() => fetchAdsMetrics(launchId, from, to), [launchId, from, to]);
+  useLiveReload([{ table: 'lead_launches', filter: `launch_id=eq.${launchId}` }, 'sales_calls', 'payments'], ads.reload, { delayMs: 5000 });
+  const m = ads.data;
+  const [meta, setMeta] = useState<MetaState | null>(null);
+  const [tick, setTick] = useState(0);
+  // Meta usa el rango ya resuelto por la base (sin rango = del primer día con datos a hoy).
+  useEffect(() => {
+    if (!m) return;
+    let cancel = false;
+    fetchMeta(launchId, m.desde, m.hasta, tick > 0)
+      .then((r) => !cancel && setMeta(r))
+      .catch((e) => !cancel && setMeta({ kind: 'error', error: (e as Error).message }));
+    return () => {
+      cancel = true;
+    };
+  }, [launchId, m?.desde, m?.hasta, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const metaState: MetaState = meta ?? { kind: 'error', error: 'Cargando datos de Meta…' };
   return (
-    <>
-      <div className="toolbar">
-        {picker}
-        <div className="toolbar__right">
-          <button className="btn btn--ghost" onClick={reload}>Actualizar</button>
-        </div>
-      </div>
-      <State loading={loading} error={error}>
-        <div className="kpis kpis--4">
-          <Kpi label="Visitas" value={num(totalVisits)} />
-          <Kpi label="Optins" value={num(optins.length)} hint={`${pct(optins.length, totalVisits)} de las visitas`} />
-          <Kpi label="Calificados" value={pct(optins.filter((r) => r.califica).length, optins.length)} hint={`${optins.filter((r) => r.califica).length} de ${optins.length} optins`} tone="ok" />
-          <Kpi label="Aplicaciones" value={num(rows.filter((r) => r.route === 'aplicado').length)} hint={`${rows.filter((r) => r.route === 'rechazado').length} a próximo ciclo`} />
-          <Kpi label="Agendas" value={num(new Set(live.map((c) => c.lead_launch_id)).size)} hint={`${live.filter((c) => c.status === 'realizada').length} llamadas realizadas`} />
-          <Kpi label="Ventas" value={num(sales.length)} hint={`${pct(sales.length, live.filter((c) => c.status === 'realizada').length)} de cierre`} tone="ok" />
-          <Kpi label="Vendido" value={money(sum(sales, 'amount_total'))} />
-          <Kpi label="Cash collected" value={money(sum(sales, 'amount_collected'))} tone="ok" />
-        </div>
+    <State loading={ads.loading} error={ads.error}>
+      {m && (
+        <div className={`mx${ads.loading ? ' is-loading' : ''}`}>
+          <div className="mx__meta muted">
+            <span>Del {fmtDate(m.desde)} al {fmtDate(m.hasta)} · actualizado {fmtDateTime(m.generado)}{m.no_cuentan ? ` · ${m.no_cuentan} marcados «No cuentan» quedan afuera` : ''}</span>
+            <button className="btn btn--ghost btn--sm" onClick={() => { ads.reload(); setTick((t) => t + 1); }}>Actualizar</button>
+          </div>
+          {meta && meta.kind !== 'ok' && <MetaNotice meta={meta} />}
 
-        <div className="two-col">
-          <Funnel title="Por versión de la landing" rows={optins} visits={visits} keyOf={(x) => x.variant || '—'} />
-          <Funnel title="Por fuente" rows={optins} visits={visits} keyOf={(x) => x.source || '—'} />
-        </div>
-
-        <h2 className="section-title">Por SDR</h2>
-        <BySdr rows={rows} calls={live} reps={reps} />
-
-        <h2 className="section-title">Por closer</h2>
-        <ByCloser calls={live} reps={reps} />
-
-        <p className="muted" style={{ marginTop: 16 }}>
-          Las visitas no se dividen por SDR: pasan antes de que el lead tenga uno. Las ventas se atribuyen al SDR actual del lead. Montos en USD (no convierte otras monedas).
-        </p>
-      </State>
-
-      <h2 className="section-title" id="equipo-de-ventas">Equipo de ventas</h2>
-      <TeamMetricsPanel launchId={launchId} picker={picker} />
-    </>
-  );
-}
-
-const sum = (calls: CallRow[], k: 'amount_total' | 'amount_collected') => calls.reduce((s, c) => s + Number(c[k] ?? 0), 0);
-
-function BySdr({ rows, calls, reps }: { rows: LeadRow[]; calls: CallRow[]; reps: SalesRep[] }) {
-  const keys = [...new Set(rows.map((r) => r.lead.sdr_id ?? ''))];
-  const name = (id: string) => (id ? reps.find((r) => r.id === id)?.name ?? '—' : 'Sin asignar');
-  const lines = keys
-    .map((id) => {
-      const mine = rows.filter((r) => (r.lead.sdr_id ?? '') === id);
-      const ids = new Set(mine.map((r) => r.id));
-      const myCalls = calls.filter((c) => ids.has(c.lead_launch_id));
-      const mySales = myCalls.filter((c) => c.result === 'cerro');
-      const scheduled = new Set(myCalls.map((c) => c.lead_launch_id)).size;
-      return {
-        id,
-        cells: [
-          name(id),
-          num(mine.length),
-          num(mine.filter((r) => r.califica).length),
-          num(mine.filter((r) => r.route === 'aplicado').length),
-          num(scheduled),
-          num(mySales.length),
-          pct(mySales.length, scheduled),
-          money(sum(mySales, 'amount_total')),
-          money(sum(mySales, 'amount_collected')),
-        ],
-        sort: mine.length,
-      };
-    })
-    .sort((a, b) => Number(a.id === '') - Number(b.id === '') || b.sort - a.sort);
-  return <NumTable head={['SDR', 'Leads', 'Calificados', 'Aplicaron', 'Agendados', 'Ventas', '% cierre', 'Vendido', 'Cobrado']} lines={lines} />;
-}
-
-function ByCloser({ calls, reps }: { calls: CallRow[]; reps: SalesRep[] }) {
-  const keys = [...new Set(calls.map((c) => c.closer_id ?? ''))];
-  const lines = keys
-    .map((id) => {
-      const mine = calls.filter((c) => (c.closer_id ?? '') === id);
-      const done = mine.filter((c) => c.status === 'realizada');
-      const sales = mine.filter((c) => c.result === 'cerro');
-      return {
-        id,
-        cells: [
-          reps.find((r) => r.id === id)?.name ?? '—',
-          num(mine.length),
-          num(done.length),
-          num(mine.filter((c) => c.status === 'agendada' && new Date(c.scheduled_at) < new Date()).length),
-          num(sales.length),
-          pct(sales.length, done.length),
-          money(sum(sales, 'amount_total')),
-          money(sum(sales, 'amount_collected')),
-        ],
-        sort: sales.length * 1000 + mine.length,
-      };
-    })
-    .sort((a, b) => b.sort - a.sort);
-  return <NumTable head={['Closer', 'Llamadas', 'Realizadas', 'Sin resultado', 'Ventas', '% cierre', 'Vendido', 'Cobrado']} lines={lines} />;
-}
-
-function NumTable({ head, lines }: { head: string[]; lines: { id: string; cells: ReactNode[] }[] }) {
-  if (!lines.length) return <p className="muted">Todavía no hay datos.</p>;
-  return (
-    <div className="glass table-wrap">
-      <table className="table table--num">
-        <thead>
-          <tr>{head.map((h) => <th key={h}>{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {lines.map((l) => (
-            <tr key={l.id || 'none'}>{l.cells.map((c, i) => <td key={i}>{c}</td>)}</tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** Visitas → optins agrupados por versión o por fuente. */
-function Funnel({
-  title,
-  rows,
-  visits,
-  keyOf,
-}: {
-  title: string;
-  rows: LeadRow[];
-  visits: LandingVisit[];
-  keyOf: (x: { variant: string | null; source: string | null }) => string;
-}) {
-  const groups = new Map<string, { visits: number; optins: number; qualified: number }>();
-  const get = (k: string) => groups.get(k) ?? (groups.set(k, { visits: 0, optins: 0, qualified: 0 }), groups.get(k)!);
-  visits.forEach((v) => (get(keyOf(v)).visits += v.visits));
-  rows.forEach((r) => {
-    const g = get(keyOf(r));
-    g.optins += 1;
-    if (r.califica) g.qualified += 1;
-  });
-  const sorted = [...groups.entries()].sort((a, b) => b[1].optins - a[1].optins || b[1].visits - a[1].visits);
-
-  return (
-    <section className="glass panel">
-      <div className="panel__head">
-        <h2 className="panel__title">{title}</h2>
-      </div>
-      {sorted.length === 0 ? (
-        <p className="muted">Todavía no hay datos.</p>
-      ) : (
-        <div className="table-wrap">
-          <table className="table table--num">
-            <thead>
-              <tr><th></th><th>Visitas</th><th>Optins</th><th>Conversión</th><th>Calificados</th></tr>
-            </thead>
-            <tbody>
-              {sorted.map(([k, g]) => (
-                <tr key={k}>
-                  <td>{k}</td>
-                  <td>{num(g.visits)}</td>
-                  <td>{num(g.optins)}</td>
-                  <td>{pct(g.optins, g.visits)}</td>
-                  <td>{pct(g.qualified, g.optins)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Section id="pauta"><PautaSection m={m} meta={metaState} /></Section>
+          <Section id="trafico">{meta ? <TrafficSection meta={meta} /> : <p className="muted">Cargando Meta…</p>}</Section>
+          <Section id="anuncios">{meta ? <AdsSection meta={meta} /> : <p className="muted">Cargando Meta…</p>}</Section>
+          <Section id="versiones"><VersionsSection m={m} /></Section>
+          <Section id="fuentes"><SourcesSection m={m} /></Section>
+          <Section id="respuestas"><AnswersSection m={m} /></Section>
+          <Section id="despues"><AfterSection m={m} team={<TeamMetricsPanel launchId={launchId} fixedRange={{ from: m.desde, to: m.hasta }} />} /></Section>
+          <Section id="ventas"><SalesSection m={m} /></Section>
         </div>
       )}
+    </State>
+  );
+}
+
+function Section({ id, children }: { id: string; children: React.ReactNode }) {
+  const [, label, tip] = SECTIONS.find((s) => s[0] === id)!;
+  return (
+    <section className="mx__section" aria-labelledby={id}>
+      <SectionTitle id={id} tip={tip}>{label}</SectionTitle>
+      {children}
     </section>
   );
 }

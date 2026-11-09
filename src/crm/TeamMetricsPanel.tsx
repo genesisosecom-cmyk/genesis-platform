@@ -34,10 +34,10 @@ const ESTADO_TONE = { activo: 'ok', pausado: 'warn', baja: 'muted' } as const;
  * Tablero del equipo de ventas (crm_team_metrics). El superadmin ve a todos; una SDR o un closer,
  * solo su fila (lo filtra la base). `picker` es el selector de lanzamiento de la página.
  */
-export default function TeamMetricsPanel({ launchId, picker, only }: { launchId: string; picker?: ReactNode; only?: Role }) {
+export default function TeamMetricsPanel({ launchId, picker, only, fixedRange }: { launchId: string; picker?: ReactNode; only?: Role; /** Rango que manda la página (oculta el selector propio). */ fixedRange?: { from: string | null; to: string | null } }) {
   const [range, setRange] = useState<RangeKey>('todo');
   const [custom, setCustom] = useState({ from: '', to: todayAR() });
-  const { from, to } = rangeDates(range, custom);
+  const { from, to } = fixedRange ?? rangeDates(range, custom);
   const { data, loading, error, reload } = useAsync(() => fetchTeamMetrics(launchId, from, to), [launchId, from, to]);
   useLiveReload(['lead_events', 'lead_launches', 'sales_calls', 'payments', 'sales_reps'], reload, { delayMs: 3000 });
   const sdr = (data?.sdr ?? []).filter((r) => !isEmptyBaja(r));
@@ -49,7 +49,7 @@ export default function TeamMetricsPanel({ launchId, picker, only }: { launchId:
 
   return (
     <section className="tm">
-      <div className="toolbar">
+      {!fixedRange && <div className="toolbar">
         <div className="filters" style={{ marginBottom: 0 }}>
           {picker}
           <div className="seg tm__range">
@@ -68,7 +68,7 @@ export default function TeamMetricsPanel({ launchId, picker, only }: { launchId:
         <div className="toolbar__right">
           <button className="btn btn--ghost" onClick={reload}>Actualizar</button>
         </div>
-      </div>
+      </div>}
 
       {roles.length > 1 && (
         <nav className="tabs">
@@ -88,10 +88,20 @@ export default function TeamMetricsPanel({ launchId, picker, only }: { launchId:
             ) : (
               <div className="stack">
                 {rows.map((r) => <PersonCard key={r.id} row={r} role={role} />)}
+                {role === 'sdr' && data.sin_asignar && data.sin_asignar.leads > 0 && (
+                  <article className="glass panel tm__card">
+                    <div className="panel__head"><h3 className="panel__title"><WithTip tip="Leads del período que todavía no tienen SDR.">Sin asignar</WithTip></h3></div>
+                    <dl className="kv">
+                      <div className="kv__row"><dt>Leads</dt><dd>{data.sin_asignar.leads}</dd></div>
+                      <div className="kv__row"><dt><WithTip tip="Dijeron invertir 100 dólares por día o más.">Califican por inversión</WithTip></dt><dd>{data.sin_asignar.califican_por_inversion}</dd></div>
+                      <div className="kv__row"><dt><WithTip tip="Completaron la aplicación post-clase.">Aplicaron</WithTip></dt><dd>{data.sin_asignar.aplicaron}</dd></div>
+                    </dl>
+                  </article>
+                )}
               </div>
             )}
             <p className="muted tm__foot">
-              {range === 'todo' ? 'Todo el lanzamiento' : from === to ? fmtDate(from) : `Del ${from ? fmtDate(from) : 'inicio'} al ${to ? fmtDate(to) : 'hoy'}`} · los leads se cuentan por fecha de registro y los dials y calls por fecha (hora de Argentina). Actualizado {fmtDateTime(data.generado)}.
+              {!from && !to ? 'Todo el lanzamiento' : from === to ? fmtDate(from) : `Del ${from ? fmtDate(from) : 'inicio'} al ${to ? fmtDate(to) : 'hoy'}`} · los leads se cuentan por fecha de registro y los dials y calls por fecha (hora de Argentina). Actualizado {fmtDateTime(data.generado)}.
             </p>
           </>
         )}

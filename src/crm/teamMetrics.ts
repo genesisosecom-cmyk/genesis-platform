@@ -15,6 +15,8 @@ export interface TeamMetrics {
   generado: string;
   sdr: MetricRow[];
   closer: MetricRow[];
+  /** Leads sin SDR (solo para el admin). */
+  sin_asignar?: { leads: number; califican_por_inversion: number; aplicaron: number } | null;
 }
 
 export const fetchTeamMetrics = async (launch: string | null, from: string | null, to: string | null) =>
@@ -69,6 +71,8 @@ export const SDR_DETAIL: { title: string; items: MetricDef[] }[] = [
     title: 'Leads',
     items: [
       m('leads_asignados', 'Leads asignados', 'num', 'Leads que se le asignaron en este período.'),
+      m('califican_por_inversion', 'Califican por inversión', 'num', 'Leads asignados que en la landing dijeron invertir 100 dólares por día o más.'),
+      m('aplicaron', 'Aplicaron', 'num', 'Leads asignados que completaron la aplicación post-clase.'),
       m('leads_contactados', 'Contactados', 'num', 'Leads a los que les hizo al menos un intento de contacto.'),
       m('pct_contactados', '% contactados', 'pct', 'Leads a los que les hizo al menos un intento de contacto.'),
       m('leads_sin_tocar', 'Sin tocar', 'num', 'Leads asignados que todavía no recibieron ningún intento y siguen abiertos.'),
@@ -107,6 +111,7 @@ export const SDR_DETAIL: { title: string; items: MetricDef[] }[] = [
     items: [
       m('pct_agenda_sobre_contactados', 'Agenda / contactados', 'pct', 'Agendas sobre contactados.'),
       m('ventas_de_sus_agendas', 'Ventas de sus agendas', 'num', 'Ventas que salieron de sus agendas.'),
+      m('pct_cierre_agendas', '% cierre de sus agendas', 'pct', 'Ventas sobre las calls que agendó.'),
       m('cash_vendido', 'Cash vendido', 'usd', 'Monto vendido que salió de sus agendas.'),
       m('cash_cobrado', 'Cash cobrado', 'usd', 'Monto cobrado que salió de sus agendas.'),
       m('finalizados', 'Finalizados', 'num', 'Leads cerrados y por qué.'),
