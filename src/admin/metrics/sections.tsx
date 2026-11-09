@@ -93,7 +93,7 @@ export function PautaSection({ m, meta }: { m: AdsMetrics; meta: MetaState }) {
           ))}
           {metaOk && (
             <div className="kv__row">
-              <dt><WithTip tip="Anuncios de la cuenta según su estado de entrega en Meta.">Anuncios</WithTip></dt>
+              <dt><WithTip tip="Anuncios de las campañas activas según su estado de entrega en Meta (los de campañas pausadas no se cuentan).">Anuncios</WithTip></dt>
               <dd>{metaOk.estados.activos} activos · {metaOk.estados.en_revision} en revisión · {metaOk.estados.rechazados} rechazados{metaOk.estados.con_problemas ? ` · ${metaOk.estados.con_problemas} con problemas` : ''}</dd>
             </div>
           )}

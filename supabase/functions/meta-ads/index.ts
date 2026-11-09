@@ -277,6 +277,9 @@ function buildInsights(meta: MetaRaw, leads: LeadRow[]) {
     serie: (adSeries.get(String(a.id)) ?? []).sort((x, y) => String(x.dia).localeCompare(String(y.dia))),
   }));
 
+  // Los estados se cuentan solo en campañas activas: las pausadas arrastran anuncios viejos rechazados o con problemas.
+  const liveCampaigns = new Set(campaigns.filter((c) => c.entrega === 'Activo').map((c) => c.id));
+  const live = ads.filter((a) => liveCampaigns.has(a.campaign_id));
   const count = (rows: { entrega: string }[], e: string) => rows.filter((r) => r.entrega === e).length;
   const totalOutcomes = leads.length;
   return {
@@ -287,7 +290,7 @@ function buildInsights(meta: MetaRaw, leads: LeadRow[]) {
       grupo: leads.filter((l) => l.toco_grupo).length,
     },
     por_dia: meta.porDia.map((r) => ({ dia: String(r.date_start), ...stats(r) })).sort((a, b) => a.dia.localeCompare(b.dia)),
-    estados: { activos: count(ads, 'Activo'), en_revision: count(ads, 'En revisión'), rechazados: count(ads, 'Rechazado'), con_problemas: count(ads, 'Con problemas') },
+    estados: { activos: count(live, 'Activo'), en_revision: count(live, 'En revisión'), rechazados: count(live, 'Rechazado'), con_problemas: count(live, 'Con problemas') },
     campanas: campaigns,
     conjuntos: adsets,
     anuncios: ads,
