@@ -1337,3 +1337,84 @@ html { scrollbar-gutter: stable; }
   .toolbar__right { flex-wrap: wrap; }
 }
 .admin__sound { margin-left: auto; font-size: 15px; }
+
+/* =====================================================================
+   Panel de métricas de pauta: gráficos
+   ===================================================================== */
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; touch-action: pan-y; }
+.chart__grid { stroke: rgba(255, 255, 255, 0.06); }
+.chart__axis { fill: var(--muted); font-size: 11px; }
+.chart__direct { fill: var(--text); font-size: 11px; }
+.chart__cross { stroke: rgba(255, 255, 255, 0.35); stroke-dasharray: 2 3; }
+.chart__legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.chart__legend i { display: inline-block; width: 14px; height: 2px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.chart__tip { position: absolute; top: 28px; min-width: 150px; padding: 8px 10px; border-radius: 10px; background: #1b130d; border: 1px solid var(--line); font-size: 12px; pointer-events: none; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45); }
+.chart__tip-day { color: var(--muted); margin-bottom: 4px; }
+.chart__tip-row { display: flex; align-items: center; gap: 6px; }
+.chart__tip-row i { width: 10px; height: 2px; border-radius: 2px; flex: none; }
+.chart__tip-row span { color: var(--muted); }
+
+.barlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.barlist__head { font-size: 12px; }
+.barlist__row { display: grid; grid-template-columns: minmax(110px, 38%) 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.barlist__label { overflow-wrap: anywhere; }
+.barlist__track { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.05); overflow: hidden; }
+.barlist__bar { display: block; height: 100%; border-radius: 4px; background: #d95926; }
+.barlist__value { white-space: nowrap; text-align: right; }
+
+.funnel { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.funnel__step { display: grid; grid-template-columns: minmax(130px, 24%) 1fr minmax(150px, auto); gap: 12px; align-items: center; font-size: 13px; }
+.funnel__track { height: 14px; border-radius: 4px; background: rgba(255, 255, 255, 0.05); overflow: hidden; }
+.funnel__bar { display: block; height: 100%; border-radius: 4px; background: #d95926; }
+.funnel__value { display: flex; flex-direction: column; text-align: right; }
+.funnel__value .muted { font-size: 11px; }
+.trend { font-size: 11px; white-space: nowrap; }
+@media (max-width: 560px) {
+  .barlist__row { grid-template-columns: 1fr auto; }
+  .barlist__track { grid-column: 1 / -1; grid-row: 2; }
+  .funnel__step { grid-template-columns: 1fr auto; }
+  .funnel__track { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* ---------- Panel de métricas de pauta ---------- */
+.mx__filters { position: sticky; top: 0; z-index: 5; padding: 10px 0; margin-bottom: 8px; background: linear-gradient(var(--bg) 70%, transparent); }
+.mx__nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; }
+.mx__nav .chip { white-space: nowrap; }
+.mx.is-loading { opacity: 0.6; transition: opacity 0.2s; }
+.mx__meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; margin-bottom: 8px; }
+.mx__section { scroll-margin-top: 72px; display: flex; flex-direction: column; gap: 14px; }
+.mx__title { margin-top: 40px; margin-bottom: 0; }
+.mx__stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 40%), 1fr)); gap: 12px; }
+.mx__stat .kpi__value { font-size: 24px; }
+.mx__stat-foot { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; min-height: 14px; }
+.mx__kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); column-gap: 28px; }
+.mx__kv .kv__row:last-child { border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.mx__kv dd { display: inline-flex; gap: 8px; align-items: baseline; justify-content: flex-end; }
+.mx__select { width: auto; padding: 7px 34px 7px 12px; font-size: 13px; }
+.mx__daytable { margin-top: 10px; max-height: 360px; overflow: auto; }
+.mx__daytable th { position: sticky; top: 0; background: #120d0a; }
+.mx__winner p { margin: 0; }
+.mx__versions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.mx__version.is-winner { border-color: rgba(12, 163, 12, 0.45); }
+.mx__vtitle { display: inline-flex; align-items: center; gap: 8px; }
+.mx__vtitle i { width: 14px; height: 3px; border-radius: 2px; }
+.mx__vbig { display: flex; flex-direction: column; gap: 4px; }
+.mx__note { font-size: 12px; margin: 0; }
+.mx__notice { font-size: 14px; }
+.mx__notice code, .mx__note code { font-size: 12px; padding: 1px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); }
+.mx__ads td:first-child { text-align: left; min-width: 220px; }
+.mx__name { display: flex; align-items: center; gap: 8px; }
+.mx__caret { width: 26px; height: 26px; font-size: 12px; flex: none; }
+.mx__thumb { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; flex: none; }
+.mx__preview { max-width: 220px; border-radius: 12px; display: block; margin-bottom: 10px; }
+.mx__total td { font-weight: 500; background: rgba(255, 255, 255, 0.025); }
+.mx__sort { background: none; border: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.mx__sort:hover { color: var(--text); }
+.mx__colsmenu { position: relative; }
+.mx__colslist { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 230px; background: #17110c; }
+@media (max-width: 900px) { .mx__versions { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .mx__kv { grid-template-columns: 1fr; } .mx__filters { position: static; } }
+.mx__day { white-space: nowrap; }
+.table--num td, .mx__ads td { white-space: nowrap; }
+.mx__ads td:first-child { white-space: normal; min-width: 260px; }

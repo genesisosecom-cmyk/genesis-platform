@@ -1,6 +1,6 @@
 import { supabase, unwrap } from '../lib/supabase';
 import { safeName } from '../content/files';
-import type { Cadence, Commission, CrmAgent, CrmResource, CrmSettings, LandingVisit, Launch, LaunchProgress, Lead, LeadEvent, LeadLaunch, Payment, PostClassStatus, SalesCall, SalesRep } from '../lib/types';
+import type { Cadence, Commission, CrmAgent, CrmResource, CrmSettings, Launch, LaunchProgress, Lead, LeadEvent, LeadLaunch, Payment, PostClassStatus, SalesCall, SalesRep } from '../lib/types';
 
 export type LeadRow = LeadLaunch & { lead: Lead };
 export type CallRow = SalesCall & { lead_launch: LeadRow };
@@ -61,8 +61,6 @@ export const fetchCalls = ({ closerId, launchId }: { closerId?: string; launchId
 export const fetchCall = async (id: string) =>
   unwrap(await supabase.from('sales_calls').select('*, lead_launch:lead_launches(*, lead:leads(*))').eq('id', id).single()) as CallRow;
 
-export const fetchVisits = (launchId: string) =>
-  fetchAll<LandingVisit>((from, to) => supabase.from('landing_visits').select('*').eq('launch_id', launchId).range(from, to));
 
 export const fetchSalesReps = async () =>
   unwrap(await supabase.from('sales_reps').select('*').order('name')) as SalesRep[];
