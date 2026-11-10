@@ -1418,3 +1418,15 @@ html { scrollbar-gutter: stable; }
 .mx__day { white-space: nowrap; }
 .table--num td, .mx__ads td { white-space: nowrap; }
 .mx__ads td:first-child { white-space: normal; min-width: 260px; }
+
+/* ---------- ¿Es realmente calificado? (tarjeta del lead) ---------- */
+.qualify { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--accent-line); border-radius: 12px; background: var(--accent-soft); }
+.qualify.is-yes { border-color: rgba(12, 163, 12, 0.5); background: rgba(12, 163, 12, 0.08); }
+.qualify.is-no { border-color: rgba(255, 138, 92, 0.5); background: rgba(255, 138, 92, 0.08); }
+.qualify__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.qualify__form { font-size: 12px; }
+.qualify__btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.qualify__btn { min-width: 132px; justify-content: center; }
+.qualify__btn--yes { background: #0ca30c; border-color: #0ca30c; color: #fff; }
+.qualify__btn--no { background: #d03b3b; border-color: #d03b3b; color: #fff; }
+.qualify__hint { margin: 0; font-size: 12px; }
