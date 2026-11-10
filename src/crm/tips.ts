@@ -11,7 +11,7 @@ export const LEAD_TIPS = {
   dials: 'Cada intento de contacto (llamada o mensaje). Después de cada intento tocá «Atendió» o «No atendió»; con «−» corregís si te equivocaste.',
   answered: 'Marcá «Sí» cuando el lead te responda por primera vez (llamada o WhatsApp). Si no contesta, queda en seguimiento según la cadencia.',
   realConversation: '¿Pudieron hablar de verdad de su negocio, más allá de un «hola»? Marcá «Sí» si llegaste a hacerle las preguntas de calificación.',
-  qualified: 'Tu evaluación después de hablar: ¿tiene el negocio, la inversión y las ganas para el programa? Dejá «—» si todavía no lo sabés.',
+  qualified: 'Lo que dice el formulario puede no ser cierto. Después de hablar, marcá si de verdad tiene el negocio, la inversión y las ganas para el programa. Si todavía no lo sabés, dejalo sin marcar.',
   readiness: '«Listo para agendar» si ya puede tener la call con el closer. «Todavía no» lo manda a nutrición: te vuelve a aparecer en seguimientos.',
   askedAgents: 'Marcá «Sí» si pidió los 3 agentes de IA. Mandáselos con el botón «Agentes»: queda registrado cuáles y cuándo.',
   notes: 'Contexto para el closer: a qué se dedica, qué le interesa, objeciones. Se guarda al salir del campo y el closer lo lee antes de la call.',

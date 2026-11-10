@@ -112,6 +112,8 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
     }
   };
   const patch = (p: LeadPatch) => run(() => updateLead(row.id, p));
+  // Para saber si califica la SDR tuvo que hablar con el lead: si «¿Contestó?» no estaba en Sí, se marca junto.
+  const qualify = (v: boolean | null) => patch(v !== null && row.answered !== true ? { sdr_qualified: v, answered: true } : { sdr_qualified: v });
 
   const toggleEvents = async () => {
     const next = !showEvents;
@@ -126,6 +128,8 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
           <strong>{l.full_name || l.email || `+${l.phone}`}</strong>
           <span className="with-tip"><Pill tone={LEVEL_TONE[level]}>{LEVEL_LABEL[level]}</Pill><InfoTip text={T.level} /></span>
           <span className="with-tip"><Pill tone="muted">{stageOf(row, ctx.launchStartsAt)}</Pill><InfoTip text={T.stage} /></span>
+          {row.sdr_qualified === true && <Pill tone="ok">Calificado real</Pill>}
+          {row.sdr_qualified === false && <Pill tone="warn">No califica</Pill>}
           {row.route === 'aplicado' && <Pill tone="ok">Aplicó</Pill>}
           {row.asked_agents && <Pill tone="accent">Pidió agentes</Pill>}
           {l.possible_duplicate && <Pill tone="warn">Posible duplicado</Pill>}
@@ -158,6 +162,26 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
             {appInv && <WithTip tip={T.application}>Aplicación: {appInv}</WithTip>}
           </div>
 
+          <section className={`qualify${row.sdr_qualified === true ? ' is-yes' : row.sdr_qualified === false ? ' is-no' : ''}`}>
+            <div className="qualify__head">
+              <strong className="with-tip">¿Es realmente calificado?<InfoTip text={T.qualified} /></strong>
+              <span className="muted qualify__form">
+                Según el formulario: {row.califica === true ? 'califica' : row.califica === false ? 'no califica' : 'sin dato'}
+                {row.inversion_meta ? ` (${row.inversion_meta})` : ''}
+              </span>
+            </div>
+            <div className="qualify__btns">
+              <button type="button" disabled={!canEdit || busy} className={`btn btn--sm qualify__btn${row.sdr_qualified === true ? ' qualify__btn--yes' : ' btn--ghost'}`}
+                aria-pressed={row.sdr_qualified === true} onClick={() => qualify(true)}>✓ Sí, califica</button>
+              <button type="button" disabled={!canEdit || busy} className={`btn btn--sm qualify__btn${row.sdr_qualified === false ? ' qualify__btn--no' : ' btn--ghost'}`}
+                aria-pressed={row.sdr_qualified === false} onClick={() => qualify(false)}>✕ No califica</button>
+              {row.sdr_qualified !== null && (
+                <button type="button" disabled={!canEdit || busy} className="link link--btn" onClick={() => qualify(null)}>Todavía no sé</button>
+              )}
+            </div>
+            {row.sdr_qualified === false && <p className="muted qualify__hint">Anotá en las notas por qué no califica: le sirve al equipo y a las métricas.</p>}
+          </section>
+
           <section className="wk">
             <Row label="Dials" tip={T.dials}>
               <div className="dials">
@@ -171,19 +195,18 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
             {row.answered && (
               <>
                 <Row label="¿Conversación real?" tip={T.realConversation}><YesNo value={row.real_conversation} disabled={!canEdit || busy} onChange={(v) => patch({ real_conversation: v })} /></Row>
-                <Row label="¿Califica de verdad?" tip={T.qualified}><YesNo value={row.sdr_qualified} allowNull disabled={!canEdit || busy} onChange={(v) => patch({ sdr_qualified: v })} /></Row>
-                {row.sdr_qualified && (
-                  <Row label="¿Está listo?" tip={T.readiness}>
-                    <div className="seg">
-                      {(['listo', 'nutricion'] as const).map((k) => (
-                        <button key={k} type="button" disabled={!canEdit || busy} className={`seg__opt${row.readiness === k ? ' is-on' : ''}`} onClick={() => patch({ readiness: k })}>
-                          {k === 'listo' ? 'Listo para agendar' : 'Todavía no (nutrición)'}
-                        </button>
-                      ))}
-                    </div>
-                  </Row>
-                )}
               </>
+            )}
+            {row.sdr_qualified && (
+              <Row label="¿Está listo?" tip={T.readiness}>
+                <div className="seg">
+                  {(['listo', 'nutricion'] as const).map((k) => (
+                    <button key={k} type="button" disabled={!canEdit || busy} className={`seg__opt${row.readiness === k ? ' is-on' : ''}`} onClick={() => patch({ readiness: k })}>
+                      {k === 'listo' ? 'Listo para agendar' : 'Todavía no (nutrición)'}
+                    </button>
+                  ))}
+                </div>
+              </Row>
             )}
             <Row label="Pidió agentes" tip={T.askedAgents}>
               <YesNo value={row.asked_agents} disabled={!canEdit || busy} onChange={(v) => patch({ asked_agents: Boolean(v) })} />
@@ -197,7 +220,7 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
                 disabled={!canEdit}
                 onChange={(e) => setNotes(e.target.value)}
                 onBlur={() => notes !== (row.sdr_notes ?? '') && patch({ sdr_notes: notes })}
-                placeholder="Contexto, objeciones, qué le interesa…"
+                placeholder={row.sdr_qualified === false ? '¿Por qué no califica? (no tiene marca, no invierte lo que dijo, no decide…)' : 'Contexto, objeciones, qué le interesa…'}
               />
             </label>
           </section>
