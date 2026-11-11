@@ -62,7 +62,7 @@ export default function TeamPage() {
       </State>
 
       <p className="muted" style={{ marginTop: 16 }}>
-        Reparto: los leads calificados se asignan al registrarse y el resto al aplicar, entre los SDR <strong>activos</strong> en round-robin según su peso (peso 2 recibe el doble). Pausado: no recibe leads nuevos pero sigue con los suyos. Baja: pierde el acceso al panel.
+        Reparto: todos los leads se asignan al registrarse (o al aplicar, si no se habían registrado), entre los SDR <strong>activos</strong> en round-robin según su peso (peso 2 recibe el doble). Pausado: no recibe leads nuevos pero sigue con los suyos. Baja: pierde el acceso al panel.
       </p>
 
       {editing && (
