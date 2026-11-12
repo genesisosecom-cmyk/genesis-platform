@@ -170,7 +170,7 @@ function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: str
             <div className="toolbar">
               <div className="filters" style={{ marginBottom: 0 }}>
                 {picker}
-                {me && <ScopeToggle value={scope} onChange={setScope} />}
+                {me && isAdmin && <ScopeToggle value={scope} onChange={setScope} />}
               </div>
               <div className="toolbar__right">
                 <input className="field field--search" type="search" placeholder="Nombre, mail, teléfono, inversión o SDR…" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -233,7 +233,7 @@ function SdrWorkspace({ launch, me, isAdmin, picker }: { launch: Launch; me: str
 
         {tab === 'calendario' && data && (
           <>
-            {me && <div className="filters"><ScopeToggle value={scope} onChange={setScope} /></div>}
+            {me && isAdmin && <div className="filters"><ScopeToggle value={scope} onChange={setScope} /></div>}
             <CallCalendar calls={data.calls.filter((c) => !who || c.sdr_id === who)} reps={reps} showCloser onOpen={setCallOpen} />
           </>
         )}
