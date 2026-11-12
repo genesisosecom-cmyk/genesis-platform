@@ -549,6 +549,9 @@ input[type='date'].field { color-scheme: dark; }
 .modal__body .section-title { margin: 28px 0 12px; }
 
 .aform { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+/* Un select con opciones largas no puede aplastar la otra columna. */
+.aform > * { min-width: 0; }
+.aform .afield > .field { width: 100%; max-width: 100%; }
 .afield { display: flex; flex-direction: column; gap: 6px; }
 .afield--full { grid-column: 1 / -1; }
 .afield__label { font-size: 12px; color: var(--muted); }
