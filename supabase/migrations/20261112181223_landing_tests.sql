@@ -252,7 +252,10 @@ begin
   if not detalle then
     with r as (
       select lv.variant code, lv.source, lv.day,
-        lv.day::timestamp at time zone tz i_start,
+        -- Un código no puede aparecer antes de que arranque el primer test que lo usa.
+        greatest(lv.day::timestamp at time zone tz, (
+          select min(t.starts_at) from public.landing_test_variants v join public.landing_tests t on t.id = v.test_id
+          where v.code = nullif(lv.variant, ''))) i_start,
         case when lv.day = log_day then log_since else (lv.day + 1)::timestamp at time zone tz end i_end,
         (lv.visits - case when lv.day = log_day then (
             select count(*) from public.landing_visit_log g

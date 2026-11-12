@@ -8,7 +8,8 @@ import { useLiveReload } from '../../lib/realtime';
 import { rangeDates, todayAR, type RangeKey } from '../../crm/teamMetrics';
 import { fetchAdsMetrics } from '../metrics/api';
 import { fetchMeta, type MetaState } from '../metrics/meta';
-import { AfterSection, AnswersSection, PautaSection, SalesSection, SectionTitle, SourcesSection, VersionsSection } from '../metrics/sections';
+import { AfterSection, AnswersSection, PautaSection, SalesSection, SectionTitle, SourcesSection } from '../metrics/sections';
+import LandingTestsSection from '../metrics/LandingTestsSection';
 import { AdsSection, MetaNotice, TrafficSection } from '../metrics/AdsSection';
 
 const RANGES: [RangeKey, string][] = [
@@ -22,7 +23,7 @@ const SECTIONS: [string, string, string][] = [
   ['pauta', 'Cómo viene la pauta', 'Registros, visitas y conversión del período; con Meta conectado, también inversión y costos.'],
   ['trafico', 'Cómo baja el tráfico', 'De las impresiones a los que entran al grupo, solo pauta: qué % sigue en cada paso.'],
   ['anuncios', 'Anuncios', 'Como el Administrador de anuncios, pero con lo que pasa después del clic.'],
-  ['versiones', 'Test de versiones', 'Cómo convierte cada versión de la landing (1, 2 y 3).'],
+  ['versiones', 'Test de versiones', 'El test de landing que está corriendo, versión por versión, y el historial de los tests anteriores para comparar.'],
   ['fuentes', 'De dónde vienen los opt-ins', 'Visitas y registros por fuente de tráfico.'],
   ['respuestas', 'Qué respondieron', 'Inversión diaria y país de los registros de pauta.'],
   ['despues', 'Después del registro', 'Cómo avanzan los registros con el equipo de ventas.'],
@@ -97,7 +98,7 @@ function LaunchMetrics({ launchId, from, to }: { launchId: string; from: string 
           <Section id="pauta"><PautaSection m={m} meta={metaState} /></Section>
           <Section id="trafico">{meta ? <TrafficSection meta={meta} /> : <p className="muted">Cargando Meta…</p>}</Section>
           <Section id="anuncios">{meta ? <AdsSection meta={meta} /> : <p className="muted">Cargando Meta…</p>}</Section>
-          <Section id="versiones"><VersionsSection m={m} /></Section>
+          <Section id="versiones"><LandingTestsSection from={from} to={to} meta={meta} /></Section>
           <Section id="fuentes"><SourcesSection m={m} /></Section>
           <Section id="respuestas"><AnswersSection m={m} /></Section>
           <Section id="despues"><AfterSection m={m} team={<TeamMetricsPanel launchId={launchId} fixedRange={{ from: m.desde, to: m.hasta }} />} /></Section>
