@@ -60,7 +60,7 @@ function Distribution({ settings, onSaved }: { settings: CrmSettings; onSaved: (
       <p className="muted" style={{ margin: 0 }}>
         {settings.assignment_mode === 'bolsa'
           ? 'Bolsa: los leads entran sin SDR y cada SDR toma los que va a trabajar desde "Por asignar".'
-          : 'Ronda: los calificados se asignan solos al registrarse y el resto al aplicar, entre los SDR activos según su peso.'}
+          : 'Ronda: todos los leads se asignan solos al registrarse (o al aplicar, si no se habían registrado), entre los SDR activos según su peso.'}
       </p>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); save({ sdr_commission_pct: Number(sdrPct), closer_commission_pct: Number(closerPct) }); }}>
         <label className="afield"><span className="afield__label">Comisión SDR (% por venta que agendó)</span><input className="field field--num" type="number" min="0" max="100" step="0.1" value={sdrPct} onChange={(e) => setSdrPct(e.target.value)} /></label>

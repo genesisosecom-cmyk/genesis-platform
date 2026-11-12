@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { adminUsers } from '../lib/adminUsers';
+import { supabase } from '../lib/supabase';
 import { ArrowRight } from '../components/Icons';
 
 /** Primer ingreso con contraseña temporal: hay que elegir una propia antes de seguir. */
@@ -19,6 +20,15 @@ export default function ChangeTempPasswordPage() {
     setSaving(true);
     try {
       await adminUsers({ action: 'change_temp_password', password });
+      // Al cambiar la contraseña, Supabase cierra todas las sesiones del usuario (también esta):
+      // se vuelve a entrar con la contraseña nueva para que la sesión quede válida.
+      if (profile?.email) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email: profile.email, password });
+        if (signInError) {
+          await logout();
+          return;
+        }
+      }
       refreshProfile();
     } catch (err) {
       setError((err as Error).message);

@@ -73,7 +73,7 @@ La landing reenvía cada evento server-to-server a la Edge Function `ingest`:
 ## Equipo de ventas: paneles de SDR y closer
 
 - **Equipo** (Admin → Equipo): cada persona tiene nombre, link de WhatsApp, usuario del campus (creado en Usuarios como Miembro) y los roles SDR y/o closer, cada uno activo, pausado o de baja. También se configura el WhatsApp por defecto.
-- **Reparto:** round-robin ponderado entre los SDR activos (peso 2 = el doble de leads). Los calificados (100 USD/día o más) se asignan en el optin; el resto, al aplicar. Sin SDR activos el lead queda sin asignar y /aplicacion devuelve el WhatsApp por defecto. Un lead asignado no cambia salvo que el admin lo reasigne (o reparta los de un SDR que se da de baja).
+- **Reparto:** round-robin ponderado entre los SDR activos (peso 2 = el doble de leads). Todos los leads se asignan en el optin (o al aplicar, si no se habían registrado), califiquen o no. Sin SDR activos el lead queda sin asignar y /aplicacion devuelve el WhatsApp por defecto. Un lead asignado no cambia salvo que el admin lo reasigne (o reparta los de un SDR que se da de baja).
 - **Panel SDR** (`/sdr`): sus leads ordenados por prioridad (aplicaron y califican primero), WhatsApp, estado post-clase, notas, próxima tarea y agenda con closer.
 - **Panel closer** (`/closer`): llamadas de hoy, próximas y pasadas sin resultado. Al cerrar carga monto, cobrado, medio de pago y comprobante (bucket privado `receipts`); se crea el cliente en Clientes y pagos o se le suma el pago si ya existía con el mismo email o teléfono.
 - SDRs y closers ven solo su panel, no el campus. Leen únicamente sus leads (RLS) y todas las acciones pasan por las funciones `crm_*` de la base, que validan permisos y dejan el historial con autor y fecha.
