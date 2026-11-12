@@ -1443,7 +1443,6 @@ html { scrollbar-gutter: stable; }
 .lt__select { width: auto; max-width: 260px; padding: 7px 34px 7px 12px; font-size: 13px; }
 .lt__check { font-size: 13px; }
 .lt__note { font-size: 12px; margin: 0; }
-.lt__tabs { margin-bottom: 14px; }
 .lt__desc { margin: 0; font-size: 13px; }
 .lt__winby { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
 .lt__winners { display: flex; flex-direction: column; gap: 6px; }
@@ -1470,14 +1469,10 @@ html { scrollbar-gutter: stable; }
 .lt__evoctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .lt__chips { margin-bottom: 0; }
 .lt__histhead { width: 100%; text-align: left; gap: 10px; flex-wrap: wrap; }
-.lt__histwin { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
-.lt__cmpctl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.lt__cmpctl .afield:last-child { grid-column: 1 / -1; }
 @media (max-width: 720px) {
   .lt__matrix { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
   .lt__corner, .lt__colhead { display: none; }
   .lt__rowhead { grid-column: 1 / -1; }
-  .lt__cmpctl { grid-template-columns: 1fr; }
   .lt__select { max-width: 100%; min-width: 0; width: 100%; flex: 1 1 100%; }
 }
 .lte__list { display: flex; flex-direction: column; gap: 8px; margin: 6px 0; }
@@ -1487,4 +1482,8 @@ html { scrollbar-gutter: stable; }
 @media (max-width: 900px) { .lte__row, .lte__row--ev { grid-template-columns: 1fr 1fr; } }
 
 .lt__h2h { gap: 10px; }
+@media (max-width: 640px) {
+  .lt__h2h .table th, .lt__h2h .table td { padding: 10px 6px; letter-spacing: 0.04em; }
+  .lt__h2h .table td:first-child { white-space: normal; }
+}
 .lt__win { color: #0ca30c; font-weight: 500; }

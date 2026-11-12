@@ -23,7 +23,7 @@ const SECTIONS: [string, string, string][] = [
   ['pauta', 'Cómo viene la pauta', 'Registros, visitas y conversión del período; con Meta conectado, también inversión y costos.'],
   ['trafico', 'Cómo baja el tráfico', 'De las impresiones a los que entran al grupo, solo pauta: qué % sigue en cada paso.'],
   ['anuncios', 'Anuncios', 'Como el Administrador de anuncios, pero con lo que pasa después del clic.'],
-  ['versiones', 'Test de versiones', 'El test de landing que está corriendo, versión por versión, y el historial de los tests anteriores para comparar.'],
+  ['versiones', 'Test de versiones', 'El test de landing que está corriendo (d1 contra d3), versión por versión. Los tests anteriores quedan en Configuración CRM.'],
   ['fuentes', 'De dónde vienen los opt-ins', 'Visitas y registros por fuente de tráfico.'],
   ['respuestas', 'Qué respondieron', 'Inversión diaria y país de los registros de pauta.'],
   ['despues', 'Después del registro', 'Cómo avanzan los registros con el equipo de ventas.'],

@@ -1,18 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import { useLiveReload } from '../../lib/realtime';
-import { fmtDate, fmtDateTime } from '../../lib/format';
+import { fmtDateTime } from '../../lib/format';
 import { Pill, State } from '../ui';
 import { WithTip } from '../../components/InfoTip';
 import { LineChart, SERIES_COLORS } from './charts';
 import { fmt } from './defs';
 import type { MetaState } from './meta';
 import {
-  activeVersions, confidence, costByVersion, fetchLandingTests, groupBy, hourLabel, lowData, MIN_REGISTROS, MIN_VISITAS, rates, retiredVersions, sideOf, totalsOf, winnerOf,
+  activeVersions, confidence, costByVersion, fetchLandingTests, groupBy, hourLabel, lowData, MIN_REGISTROS, MIN_VISITAS, rates, retiredVersions, totalsOf, winnerOf,
   type LandingTest, type LandingTestsData, type TestFilters, type TestVersion, type Totals, type WinBy,
 } from './landingTests';
-
-type Tab = 'actual' | 'historial' | 'comparar' | 'otras';
 
 const TIPS = {
   visitas: 'Visitas a la landing en esta versión. «≈» = incluye visitas de días con corte repartidas por hora (estimado).',
@@ -31,7 +29,6 @@ export default function LandingTestsSection({ from, to, meta }: { from: string |
   const [contenido, setContenido] = useState('');
   const [anuncio, setAnuncio] = useState('');
   const [estable, setEstable] = useState(true);
-  const [tab, setTab] = useState<Tab>('actual');
   const filters: TestFilters = { from, to, fuente, campana, contenido, anuncio, estable };
   const q = useAsync(() => fetchLandingTests(filters), [from, to, fuente, campana, contenido, anuncio, estable]);
   useLiveReload(['lead_launches'], q.reload, { delayMs: 5000 });
@@ -59,26 +56,17 @@ export default function LandingTestsSection({ from, to, meta }: { from: string |
           <option value="">Todos los anuncios</option>
           {d?.opciones.anuncios.map((c) => <option key={c} value={c}>{adName(c)}</option>)}
         </select>
-        <label className="check lt__check">
+        {current?.estable_desde && <label className="check lt__check">
           <input type="checkbox" checked={estable} onChange={(e) => setEstable(e.target.checked)} />
           <WithTip tip="Toma los datos desde que la página quedó estable (por ejemplo, el 12/11 desde las 04:01). Destildalo para ver desde el inicio del test.">Desde que la página quedó estable</WithTip>
-        </label>
+        </label>}
       </div>
       {d?.solo_visitas_con_hora && (
         <p className="muted lt__note">Con filtro de campaña, contenido o anuncio, las visitas solo cuentan desde el {fmtDateTime(d.log_desde)} (antes no se guardaban las UTM de cada visita). Los registros sí se filtran en todo el período.</p>
       )}
 
-      <nav className="tabs lt__tabs">
-        {([['actual', 'Test actual'], ['historial', 'Historial'], ['comparar', 'Comparar'], ['otras', 'Otras landings y sin test']] as [Tab, string][]).map(([k, l]) => (
-          <button key={k} type="button" className={`tabs__link tabs__btn${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{l}</button>
-        ))}
-      </nav>
-
       <State loading={q.loading} error={q.error}>
-        {d && tab === 'actual' && (current ? <CurrentTest test={current} data={d} meta={meta} estable={estable} /> : <div className="state muted">No hay ningún test abierto.</div>)}
-        {d && tab === 'historial' && <History data={d} />}
-        {d && tab === 'comparar' && <Compare data={d} />}
-        {d && tab === 'otras' && <Others data={d} />}
+        {d && (current ? <CurrentTest test={current} data={d} meta={meta} estable={estable} /> : <div className="state muted">No hay ningún test abierto.</div>)}
       </State>
     </>
   );
@@ -180,6 +168,9 @@ function CurrentTest({ test, data, meta, estable }: { test: LandingTest; data: L
   );
 }
 
+/** Nombre corto para la cabecera: «d1 · con VSL» → «con VSL». */
+const shortName = (v: TestVersion) => v.nombre.replace(new RegExp(`^${v.code}\\s*·\\s*`), '') || v.orden;
+
 /** Dos versiones cara a cara: cada métrica, la diferencia y si ya es confiable. */
 function HeadToHead({ a, b, costo }: { a: TestVersion; b: TestVersion; costo: Record<string, number> | null }) {
   const ta = totalsOf([a], costo);
@@ -208,8 +199,8 @@ function HeadToHead({ a, b, costo }: { a: TestVersion; b: TestVersion; costo: Re
           <thead>
             <tr>
               <th></th>
-              <th>{a.code}<div className="cell-sub lt__sub">{a.orden}</div></th>
-              <th>{b.code}<div className="cell-sub lt__sub">{b.orden}</div></th>
+              <th>{a.code}<div className="cell-sub lt__sub">{shortName(a)}</div></th>
+              <th>{b.code}<div className="cell-sub lt__sub">{shortName(b)}</div></th>
               <th>Mejor</th>
             </tr>
           </thead>
@@ -435,162 +426,5 @@ const hourKey = (iso: string) => {
   const g = (t: string) => p.find((x) => x.type === t)?.value;
   return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:00:00`;
 };
-
-// ---------- Historial ----------
-
-function History({ data }: { data: LandingTestsData }) {
-  const ended = data.tests.filter((t) => t.tipo === 'test' && t.fin);
-  const [open, setOpen] = useState<string | null>(ended[0]?.id ?? null);
-  if (!ended.length) return <div className="state muted">Todavía no hay tests terminados.</div>;
-  return (
-    <div className="stack">
-      {ended.map((t) => {
-        const w = winnerOf(t.versiones.map((v) => ({ key: v.code, t: totalsOf([v]) })), 'conversion');
-        const tot = totalsOf(t.versiones);
-        const hasData = tot.visitas > 0 || tot.registros > 0;
-        return (
-          <article key={t.id} className="glass panel">
-            <button type="button" className="panel__head link--btn lt__histhead" onClick={() => setOpen(open === t.id ? null : t.id)}>
-              <span>
-                <strong>{t.nombre}</strong>
-                <span className="muted"> · {fmtDateTime(t.inicio)} → {fmtDateTime(t.fin)}</span>
-              </span>
-              <span className="lt__histwin">
-                {hasData && w ? <>Ganó <strong>{t.versiones.find((v) => v.code === w.key)?.nombre}</strong> {w.confiable ? <Pill tone="ok">{fmt(w.confianza, 'pct')}</Pill> : <Pill tone="warn">{fmt(w.confianza, 'pct')} · no concluyente</Pill>}</> : <Pill tone="muted">Sin datos en el campus</Pill>}
-                <span className="muted">{open === t.id ? '▾' : '▸'}</span>
-              </span>
-            </button>
-            {open === t.id && (
-              <>
-                <p className="muted lt__desc">{t.descripcion}{t.datos_desde ? ` Datos desde el ${fmtDate(t.datos_desde)}.` : ''}</p>
-                {hasData && (
-                  <TotalsTable rows={t.versiones.map((v) => ({ key: v.code, label: `${v.code} · ${v.nombre}`, sub: v.titular, t: totalsOf([v]), rez: v.rezagados_visitas + v.rezagados_registros }))} best={w?.key ?? null} showCost={false} />
-                )}
-              </>
-            )}
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-// ---------- Comparar ----------
-
-function Compare({ data }: { data: LandingTestsData }) {
-  const options = data.tests.filter((t) => t.tipo === 'test').flatMap((t) => t.versiones.map((v) => ({ id: `${t.id}|${v.code}`, label: `${t.nombre} · ${v.nombre}`, test: t, v })));
-  const current = data.tests.find((t) => t.tipo === 'test' && !t.fin);
-  const bestCur = current ? winnerOf(activeVersions(current).map((v) => ({ key: v.code, t: totalsOf([v]) })), 'conversion') : null;
-  const t16 = data.tests.find((t) => t.id === 'orden-16-10');
-  const best16 = t16 ? winnerOf(t16.versiones.map((v) => ({ key: v.code, t: totalsOf([v]) })), 'conversion') : null;
-  const [a, setA] = useState(current && bestCur ? `${current.id}|${bestCur.key}` : options[0]?.id ?? '');
-  const [b, setB] = useState(t16 && best16 ? `${t16.id}|${best16.key}` : options[1]?.id ?? '');
-  const [mode, setMode] = useState<'dia' | 'n'>('dia');
-  const A = options.find((o) => o.id === a);
-  const B = options.find((o) => o.id === b);
-  const maxDays = Math.max(1, Math.min(A?.v.serie.length ?? 1, B?.v.serie.length ?? 1));
-  const [n, setN] = useState(maxDays);
-  const nn = Math.min(Math.max(1, n), maxDays);
-  const sa = A ? sideOf(A.v, mode === 'n' ? nn : null) : null;
-  const sb = B ? sideOf(B.v, mode === 'n' ? nn : null) : null;
-  const conf = sa && sb ? confidence(sa.registros, sa.visitas, sb.registros, sb.visitas) : null;
-
-  const rows: [string, string, (s: NonNullable<typeof sa>) => number | null, 'num' | 'pct'][] = mode === 'dia'
-    ? [
-        ['Días con datos', 'Días en los que la versión tuvo visitas o registros.', (s) => s.dias, 'num'],
-        ['Visitas por día', 'Promedio de visitas por día con datos.', (s) => (s.dias ? s.visitas / s.dias : null), 'num'],
-        ['Registros por día', 'Promedio de registros por día con datos.', (s) => (s.dias ? s.registros / s.dias : null), 'num'],
-        ['Conversión', 'Registros sobre visitas en todo el período.', (s) => (s.visitas ? (s.registros / s.visitas) * 100 : null), 'pct'],
-        ['% calificados', 'Calificados sobre registros.', (s) => (s.registros ? (s.calificados / s.registros) * 100 : null), 'pct'],
-        ['Calificados por visita', 'Calificados sobre visitas.', (s) => (s.visitas ? (s.calificados / s.visitas) * 100 : null), 'pct'],
-        ['% grupo', 'Registros que entraron al grupo de WhatsApp.', (s) => (s.registros ? (s.grupo / s.registros) * 100 : null), 'pct'],
-      ]
-    : [
-        ['Visitas', `Visitas en los primeros ${nn} días con datos de cada versión.`, (s) => s.visitas, 'num'],
-        ['Registros', `Registros en los primeros ${nn} días con datos.`, (s) => s.registros, 'num'],
-        ['Conversión', 'Registros sobre visitas en esos días.', (s) => (s.visitas ? (s.registros / s.visitas) * 100 : null), 'pct'],
-        ['% calificados', 'Calificados sobre registros.', (s) => (s.registros ? (s.calificados / s.registros) * 100 : null), 'pct'],
-        ['Calificados por visita', 'Calificados sobre visitas.', (s) => (s.visitas ? (s.calificados / s.visitas) * 100 : null), 'pct'],
-        ['% grupo', 'Registros que entraron al grupo de WhatsApp.', (s) => (s.registros ? (s.grupo / s.registros) * 100 : null), 'pct'],
-      ];
-
-  return (
-    <div className="glass panel">
-      <div className="lt__cmpctl">
-        <label className="afield"><span className="afield__label">Versión A</span>
-          <select className="field field--select" value={a} onChange={(e) => setA(e.target.value)}>{options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select>
-        </label>
-        <label className="afield"><span className="afield__label">Versión B</span>
-          <select className="field field--select" value={b} onChange={(e) => setB(e.target.value)}>{options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select>
-        </label>
-        <div className="afield">
-          <span className="afield__label"><WithTip tip="Por día: promedios por día y tasas de todo el período. Primeros N días: lo que pasó en los primeros N días con datos de cada versión, para comparar períodos de igual duración.">Cómo comparar</WithTip></span>
-          <div className="filters" style={{ marginBottom: 0 }}>
-            <div className="seg">
-              <button type="button" className={`seg__opt${mode === 'dia' ? ' is-on' : ''}`} onClick={() => setMode('dia')}>Normalizado por día</button>
-              <button type="button" className={`seg__opt${mode === 'n' ? ' is-on' : ''}`} onClick={() => setMode('n')}>Primeros N días</button>
-            </div>
-            {mode === 'n' && <input className="field field--num" type="number" min={1} max={maxDays} value={nn} onChange={(e) => setN(Number(e.target.value))} aria-label="Cantidad de días" />}
-          </div>
-        </div>
-      </div>
-      {sa && sb && A && B && (
-        <div className="table-wrap">
-          <table className="table table--num">
-            <thead><tr><th></th><th>A · {A.v.code}</th><th>B · {B.v.code}</th><th>Diferencia</th></tr></thead>
-            <tbody>
-              {rows.map(([label, tip, f, kind]) => {
-                const va = f(sa);
-                const vb = f(sb);
-                const diff = va !== null && vb !== null ? va - vb : null;
-                return (
-                  <tr key={label}>
-                    <td><WithTip tip={tip}>{label}</WithTip></td>
-                    <td>{fmt(va, kind)}</td>
-                    <td>{fmt(vb, kind)}</td>
-                    <td>{diff === null ? '—' : `${diff > 0 ? '+' : ''}${fmt(diff, kind === 'pct' ? 'x' : 'num')}${kind === 'pct' ? ' pts' : ''}`}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <p className="muted lt__note">
-        {A && <>A: {A.test.nombre}{A.v.titular ? ` · «${A.v.titular}»` : ''}. </>}
-        {B && <>B: {B.test.nombre}{B.v.titular ? ` · «${B.v.titular}»` : ''}. </>}
-        Confianza de que la conversión es distinta: <strong>{fmt(conf, 'pct')}</strong>{conf !== null && conf < 95 ? ' (todavía no es concluyente)' : ''}.
-        Ojo: los tests corrieron en fechas distintas, con otra pauta y otro momento del lanzamiento.
-      </p>
-    </div>
-  );
-}
-
-// ---------- Otras landings y sin test ----------
-
-function Others({ data }: { data: LandingTestsData }) {
-  const landings = data.tests.filter((t) => t.tipo === 'landing');
-  return (
-    <div className="stack">
-      {landings.map((t) => (
-        <section key={t.id}>
-          <h3 className="section-title section-title--sm"><WithTip tip={t.descripcion}>{t.nombre}</WithTip></h3>
-          <TotalsTable rows={t.versiones.map((v) => ({ key: v.code, label: `${v.code} · ${v.nombre}`, sub: v.titular, t: totalsOf([v]) }))} best={null} showCost={false} />
-        </section>
-      ))}
-      <section>
-        <h3 className="section-title section-title--sm"><WithTip tip="Visitas y registros con un código de versión que no pertenece a ningún test cargado (o sin código).">Sin test</WithTip></h3>
-        {data.sin_test.length === 0 ? <p className="muted">No hay.</p> : (
-          <div className="glass table-wrap">
-            <table className="table table--num">
-              <thead><tr><th>Código</th><th>Visitas</th><th>Registros</th></tr></thead>
-              <tbody>{data.sin_test.map((s) => <tr key={s.code}><td>{s.code ? <code>{s.code}</code> : <span className="muted">(sin código)</span>}</td><td>{fmt(s.visitas, 'num')}</td><td>{fmt(s.registros, 'num')}</td></tr>)}</tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
 
 export type { ReactNode };

@@ -217,23 +217,6 @@ export function costByVersion(test: LandingTest, data: LandingTestsData, meta: M
   return { costo, fijos };
 }
 
-// ---------- Comparación ----------
-
-export interface CompareSide { visitas: number; registros: number; calificados: number; grupo: number; dias: number }
-
-/** Suma de una versión: en los primeros N días con datos (N = null: todo). */
-export function sideOf(v: TestVersion, firstDays: number | null): CompareSide {
-  const pts = [...v.serie].sort((a, b) => a.dia.localeCompare(b.dia));
-  const used = firstDays ? pts.slice(0, firstDays) : pts;
-  return {
-    visitas: used.reduce((s, p) => s + Number(p.visitas), 0),
-    registros: used.reduce((s, p) => s + Number(p.registros), 0),
-    calificados: used.reduce((s, p) => s + Number(p.calificados), 0),
-    grupo: used.reduce((s, p) => s + Number(p.grupo), 0),
-    dias: used.length,
-  };
-}
-
 /** Día local d/m o fecha y hora para el eje X por hora. */
 export const hourLabel = (h: string) => {
   const d = new Date(h.length <= 19 ? `${h}` : h);
