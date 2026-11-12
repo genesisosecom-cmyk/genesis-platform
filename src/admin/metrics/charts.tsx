@@ -29,7 +29,17 @@ const shortDay = (iso: string) => {
 };
 
 /** Líneas por día. Una sola escala (nunca dos ejes). Crosshair + tooltip con todas las series. */
-export function LineChart({ days, series, format, height = 220, label }: { days: string[]; series: Series[]; format: (v: number | null) => string; height?: number; label: string }) {
+export function LineChart({ days, series, format, height = 220, label, xLabel = shortDay, markers = [] }: {
+  days: string[];
+  series: Series[];
+  format: (v: number | null) => string;
+  height?: number;
+  label: string;
+  /** Cómo se escribe cada valor del eje X (por defecto, día d/m). */
+  xLabel?: (k: string) => string;
+  /** Marcas verticales (cambios en la página): posición en el eje X y texto. */
+  markers?: { i: number; label: string }[];
+}) {
   const { ref, w } = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   const pad = { l: 44, r: series.length > 1 ? 34 : 14, t: 12, b: 26 };
@@ -67,7 +77,7 @@ export function LineChart({ days, series, format, height = 220, label }: { days:
           </g>
         ))}
         {days.map((d, i) => (i % every === 0 || i === days.length - 1) && (
-          <text key={d} x={x(i)} y={height - 8} textAnchor="middle" className="chart__axis">{shortDay(d)}</text>
+          <text key={d} x={x(i)} y={height - 8} textAnchor="middle" className="chart__axis">{xLabel(d)}</text>
         ))}
         {series.map((s) => {
           const pts = s.values.map((v, i) => (v === null ? null : `${x(i)},${y(v)}`));
@@ -80,11 +90,18 @@ export function LineChart({ days, series, format, height = 220, label }: { days:
                 ? <circle key={k} cx={sg[0].split(',')[0]} cy={sg[0].split(',')[1]} r={4} fill={s.color} />
                 : <polyline key={k} points={sg.join(' ')} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />))}
               {series.length > 1 && lastI !== undefined && (
-                <text x={x(lastI) + 6} y={y(s.values[lastI]!)} dy="0.32em" className="chart__direct">{s.name.replace(/^Versión /, 'V')}</text>
+                <text x={x(lastI) + 6} y={y(s.values[lastI]!)} dy="0.32em" className="chart__direct">{s.name.split(' ').pop()}</text>
               )}
             </g>
           );
         })}
+        {markers.map((m, k) => (
+          <g key={`m${k}`} className="chart__marker">
+            <line x1={x(m.i)} x2={x(m.i)} y1={pad.t} y2={pad.t + ih} />
+            <text x={x(m.i)} y={pad.t + 2} textAnchor="middle">◆</text>
+            <title>{m.label}</title>
+          </g>
+        ))}
         {hover !== null && (
           <g>
             <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={pad.t + ih} className="chart__cross" />
@@ -96,7 +113,8 @@ export function LineChart({ days, series, format, height = 220, label }: { days:
       </svg>
       {hover !== null && (
         <div className="chart__tip" style={{ left: Math.min(w - 170, Math.max(0, x(hover) + 10)) }}>
-          <div className="chart__tip-day">{shortDay(days[hover])}</div>
+          <div className="chart__tip-day">{xLabel(days[hover])}</div>
+          {markers.filter((m) => m.i === hover).map((m, k) => <div key={k} className="chart__tip-event">◆ {m.label}</div>)}
           {series.map((s) => (
             <div key={s.name} className="chart__tip-row"><i style={{ background: s.color }} /><strong>{format(s.values[hover])}</strong><span>{s.name}</span></div>
           ))}

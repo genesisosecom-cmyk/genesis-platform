@@ -52,17 +52,6 @@ export const SUMMARY: Def[] = [
 /** Los que van en grande arriba. */
 export const SUMMARY_KEY = ['optins_pauta', 'calificados_pauta', 'pct_calificados_pauta', 'conversion_landing', 'pct_grupo_pauta', 'tasa_agenda'];
 
-export const VERSION_DEFS: Def[] = [
-  d('visitantes', 'Visitantes', 'num', 'Visitas a la landing en esta versión (todas las fuentes, sin «Test»).'),
-  d('optins', 'Opt-ins', 'num', 'Registros en esta versión.'),
-  d('optins_por_visitante', 'Opt-ins por visitante', 'pct', 'Opt-ins sobre visitantes: la métrica que define al ganador.', true),
-  d('calificados', 'Calificados', 'num', 'Registros de esta versión que invierten 100 dólares por día o más.'),
-  d('pct_calificados', '% calificados', 'pct', 'Calificados sobre opt-ins de esta versión.', true),
-  d('calificados_por_visitante', 'Calificados por visitante', 'pct', 'Calificados sobre visitantes de esta versión.', true),
-  d('grupo', 'Entraron al grupo', 'num', 'Registros de esta versión que entraron al grupo de WhatsApp.'),
-  d('pct_grupo', '% grupo', 'pct', 'Entraron al grupo sobre opt-ins de esta versión.', true),
-];
-
 export const FUNNEL_STEPS: Def[] = [
   d('optins', 'Opt-ins', 'num', 'Registros del período.'),
   d('contactados', 'Contactados', 'num', 'Con al menos un intento de contacto, «¿Contestó?» cargado o etapa avanzada.'),

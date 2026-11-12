@@ -5,6 +5,7 @@ import { fmtDate, fmtMoney } from '../../lib/format';
 import { Field, Modal, Pill, State } from '../ui';
 import { fetchAgents, fetchLaunches, fetchResources, fetchSettings } from '../../crm/api';
 import type { CrmAgent, CrmResource, CrmSettings, Launch } from '../../lib/types';
+import LandingTestsEditor from './LandingTestsEditor';
 
 const load = () => Promise.all([fetchSettings(), fetchLaunches(), fetchAgents(), fetchResources()]);
 
@@ -15,6 +16,7 @@ export default function CrmConfigPage() {
     <State loading={loading} error={error}>
       {settings && <Distribution settings={settings} onSaved={reload} />}
       <Launches launches={launches} onSaved={reload} />
+      <LandingTestsEditor />
       <Agents agents={agents} onSaved={reload} />
       <Resources resources={resources.filter((r) => !r.owner_id)} onSaved={reload} />
     </State>

@@ -1,10 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Pill } from '../ui';
 import InfoTip, { WithTip } from '../../components/InfoTip';
 import { fmtDate } from '../../lib/format';
 import { INVESTMENT_LEVELS } from '../../crm/model';
 import type { AdsMetrics, Summary } from './api';
-import { FUNNEL_STEPS, SUMMARY, SUMMARY_KEY, VERSION_DEFS, fmt, trend, type Def } from './defs';
+import { FUNNEL_STEPS, SUMMARY, SUMMARY_KEY, fmt, trend, type Def } from './defs';
 import { BarList, Funnel, LineChart, SERIES_COLORS, TrendArrow } from './charts';
 import { derive, type MetaState } from './meta';
 
@@ -149,73 +148,6 @@ const shift = (day: string, n: number) => {
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 };
-
-// ---------- Test de versiones ----------
-
-export function VersionsSection({ m }: { m: AdsMetrics }) {
-  const [metric, setMetric] = useState<'optins_por_visitante' | 'calificados_por_visitante' | 'visitantes' | 'optins'>('optins_por_visitante');
-  if (!m.versiones.length) return <div className="state muted">No hay datos de versiones en el rango.</div>;
-  const g = m.ganador;
-  const days = m.versiones[0].serie.map((s) => s.dia);
-  const valueOf = (s: { visitantes: number; optins: number; calificados: number }) =>
-    metric === 'optins_por_visitante' ? (s.visitantes ? (s.optins / s.visitantes) * 100 : null)
-      : metric === 'calificados_por_visitante' ? (s.visitantes ? (s.calificados / s.visitantes) * 100 : null)
-        : s[metric];
-  const isPct = metric.endsWith('por_visitante');
-  return (
-    <>
-      <div className="glass panel mx__winner">
-        {g ? (
-          <p>
-            <WithTip tip="Prueba z de dos proporciones (opt-ins / visitantes) entre las dos mejores versiones. La confianza es (1 − p-valor). Con menos de 95% todavía puede ser casualidad.">
-              <strong>Va ganando la versión {g.version}</strong>
-            </WithTip>{' '}
-            contra la {g.contra} con <strong>{fmt(g.confianza, 'pct')}</strong> de confianza
-            {g.confianza !== null && g.confianza < 95 ? <span className="muted"> · todavía no es concluyente (hace falta 95% o más)</span> : <span className="text-ok"> · diferencia confiable</span>}
-          </p>
-        ) : (
-          <p className="muted">Todavía no hay datos suficientes para comparar versiones.</p>
-        )}
-      </div>
-      <div className="mx__versions">
-        {m.versiones.map((v, i) => (
-          <article key={v.version} className={`glass panel mx__version${g?.version === v.version ? ' is-winner' : ''}`}>
-            <div className="panel__head">
-              <h3 className="panel__title mx__vtitle"><i style={{ background: SERIES_COLORS[i] }} />Versión {v.version}</h3>
-              {g?.version === v.version && <Pill tone="ok">Va ganando</Pill>}
-            </div>
-            <div className="mx__vbig">
-              <span className="eyebrow with-tip">Opt-ins por visitante<InfoTip text={VERSION_DEFS[2].tip} /></span>
-              <span className="kpi__value">{fmt(v.optins_por_visitante, 'pct')}</span>
-            </div>
-            <dl className="kv">
-              {VERSION_DEFS.filter((d) => d.key !== 'optins_por_visitante').map((d) => (
-                <div key={d.key} className="kv__row">
-                  <dt><WithTip tip={d.tip}>{d.label}</WithTip></dt>
-                  <dd>{fmt((v as unknown as Record<string, unknown>)[d.key], d.fmt)}</dd>
-                </div>
-              ))}
-            </dl>
-          </article>
-        ))}
-      </div>
-      <div className="glass panel">
-        <div className="panel__head">
-          <h3 className="panel__title">Por día</h3>
-          <select className="field field--select mx__select" value={metric} onChange={(e) => setMetric(e.target.value as typeof metric)} aria-label="Métrica del gráfico de versiones">
-            <option value="optins_por_visitante">Opt-ins por visitante</option>
-            <option value="calificados_por_visitante">Calificados por visitante</option>
-            <option value="visitantes">Visitantes</option>
-            <option value="optins">Opt-ins</option>
-          </select>
-        </div>
-        <LineChart days={days} label="Versiones por día"
-          series={m.versiones.map((v, i) => ({ name: `Versión ${v.version}`, color: SERIES_COLORS[i], values: v.serie.map(valueOf) }))}
-          format={(v) => fmt(v, isPct ? 'pct' : 'num')} />
-      </div>
-    </>
-  );
-}
 
 // ---------- De dónde vienen ----------
 
