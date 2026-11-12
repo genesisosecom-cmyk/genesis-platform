@@ -154,8 +154,12 @@ export interface SalesRep {
   sdr_status: RepStatus | null;
   closer_status: RepStatus | null;
   sdr_weight: number;
+  /** Qué leads recibe en el reparto automático. */
+  sdr_segment: SdrSegment;
   created_at: string;
 }
+
+export type SdrSegment = 'todos' | 'calificados' | 'no_calificados';
 
 export interface CrmSettings {
   id: boolean;

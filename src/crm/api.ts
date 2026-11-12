@@ -76,7 +76,7 @@ export const fetchSettings = async () =>
 
 // ---------- Admin: equipo y configuración ----------
 
-export type RepInput = Pick<SalesRep, 'name' | 'whatsapp_url' | 'profile_id' | 'sdr_status' | 'closer_status' | 'sdr_weight'>;
+export type RepInput = Pick<SalesRep, 'name' | 'whatsapp_url' | 'profile_id' | 'sdr_status' | 'closer_status' | 'sdr_weight' | 'sdr_segment'>;
 
 export async function saveRep(id: string | null, input: RepInput) {
   if (id) unwrap(await supabase.from('sales_reps').update(input).eq('id', id));

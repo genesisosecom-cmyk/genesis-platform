@@ -4,7 +4,9 @@ import { useAsync } from '../../lib/useAsync';
 import { fetchProfiles } from '../api';
 import { Field, Modal, Pill, State } from '../ui';
 import { distributeLeads, fetchLaunches, fetchLeadCountBySdr, fetchSalesReps, fetchSettings, saveDefaultWhatsapp, saveRep, type RepInput } from '../../crm/api';
-import type { Profile, RepStatus, SalesRep } from '../../lib/types';
+import type { Profile, RepStatus, SalesRep, SdrSegment } from '../../lib/types';
+
+const SEGMENT_LABEL: Record<SdrSegment, string> = { todos: 'Todos los leads', calificados: 'Solo calificados', no_calificados: 'Solo no calificados' };
 
 const load = () => Promise.all([fetchSalesReps(), fetchProfiles(), fetchLeadCountBySdr(), fetchSettings(), fetchLaunches()]);
 
@@ -51,7 +53,10 @@ export default function TeamPage() {
                   <td><div className="cell-main">{r.name}</div></td>
                   <td>{email(r.profile_id) ?? <Pill tone="warn">Sin usuario</Pill>}</td>
                   <td>{r.whatsapp_url ? <span className="cell-sub">{r.whatsapp_url}</span> : <Pill tone="warn">Sin link</Pill>}</td>
-                  <td><RoleCell status={r.sdr_status} extra={r.sdr_status === 'activo' && r.sdr_weight !== 1 ? `peso ${r.sdr_weight}` : undefined} /></td>
+                  <td>
+                    <RoleCell status={r.sdr_status} extra={r.sdr_status === 'activo' && r.sdr_weight !== 1 ? `peso ${r.sdr_weight}` : undefined} />
+                    {r.sdr_status && r.sdr_segment !== 'todos' && <div className="cell-sub">{SEGMENT_LABEL[r.sdr_segment]}</div>}
+                  </td>
                   <td><RoleCell status={r.closer_status} /></td>
                   <td>{counts[r.id] ?? 0}</td>
                 </tr>
@@ -62,7 +67,7 @@ export default function TeamPage() {
       </State>
 
       <p className="muted" style={{ marginTop: 16 }}>
-        Reparto: todos los leads se asignan al registrarse (o al aplicar, si no se habían registrado), entre los SDR <strong>activos</strong> en round-robin según su peso (peso 2 recibe el doble). Pausado: no recibe leads nuevos pero sigue con los suyos. Baja: pierde el acceso al panel.
+        Reparto: todos los leads se asignan al registrarse (o al aplicar, si no se habían registrado), entre los SDR <strong>activos</strong> en round-robin según su peso (peso 2 recibe el doble). Cada SDR puede recibir todos los leads, solo los calificados (100 USD/día o más en Meta) o solo los no calificados; si para un lead no hay ningún SDR activo de su tipo, se reparte entre todos los activos. Pausado: no recibe leads nuevos pero sigue con los suyos. Baja: pierde el acceso al panel.
       </p>
 
       {editing && (
@@ -144,6 +149,7 @@ function RepModal({
     sdr_status: rep ? rep.sdr_status : 'activo',
     closer_status: rep?.closer_status ?? null,
     sdr_weight: rep?.sdr_weight ?? 1,
+    sdr_segment: rep?.sdr_segment ?? 'todos',
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -209,6 +215,13 @@ function RepModal({
         <Field label="Rol SDR">{roleSelect('sdr_status', 'No es SDR')}</Field>
         <Field label="Peso en el reparto">
           <input className="field" type="number" min="1" max="100" disabled={!v.sdr_status} value={v.sdr_weight} onChange={(e) => setV((s) => ({ ...s, sdr_weight: Number(e.target.value) }))} />
+        </Field>
+        <Field label="Qué leads recibe">
+          <select className="field field--select" disabled={!v.sdr_status} value={v.sdr_segment} onChange={(e) => setV((s) => ({ ...s, sdr_segment: e.target.value as SdrSegment }))}>
+            <option value="todos">Todos los leads</option>
+            <option value="calificados">Solo calificados (100 USD/día o más)</option>
+            <option value="no_calificados">Solo no calificados</option>
+          </select>
         </Field>
         <Field label="Rol closer">{roleSelect('closer_status', 'No es closer')}</Field>
         {error && <p className="login__error afield--full">{error}</p>}
