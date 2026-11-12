@@ -1478,7 +1478,10 @@ html { scrollbar-gutter: stable; }
   .lt__select { max-width: 100%; min-width: 0; width: 100%; flex: 1 1 100%; }
 }
 .lte__list { display: flex; flex-direction: column; gap: 8px; margin: 6px 0; }
-.lte__row { display: grid; grid-template-columns: 90px 1fr 90px 1.4fr 90px 1fr auto; gap: 6px; align-items: center; }
+.lte__row { display: grid; grid-template-columns: 80px 1fr 70px 1.3fr 70px 1fr 170px auto; gap: 6px; align-items: center; }
 .lte__row--ev { grid-template-columns: 200px 1fr 160px auto; }
 .lte__row .field { padding: 8px 10px; font-size: 13px; }
 @media (max-width: 900px) { .lte__row, .lte__row--ev { grid-template-columns: 1fr 1fr; } }
+
+.lt__h2h { gap: 10px; }
+.lt__win { color: #0ca30c; font-weight: 500; }

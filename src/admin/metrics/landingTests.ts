@@ -14,6 +14,8 @@ export interface TestVersion {
   orden_key: string;
   orden: string;
   sort: number;
+  /** Desde cuándo la versión salió del test (null = sigue). */
+  retirada: string | null;
   visitas: number;
   visitas_pauta: number;
   visitas_estimadas: boolean;
@@ -154,6 +156,10 @@ export function winnerOf<K>(items: { key: K; t: Totals }[], by: WinBy): Winner<K
   const pocos = lowData(a.t) || (b ? lowData(b.t) : true);
   return { key: a.key, contra: b?.key ?? null, confianza: conf, confiable: conf !== null && conf >= 95 && !pocos, pocosDatos: pocos };
 }
+
+/** Versiones que siguen en el test (las que salieron antes de terminar, aparte). */
+export const activeVersions = (t: LandingTest) => t.versiones.filter((v) => !v.retirada || Date.parse(v.retirada) > Date.now());
+export const retiredVersions = (t: LandingTest) => t.versiones.filter((v) => v.retirada && Date.parse(v.retirada) <= Date.now());
 
 // ---------- Grupos: por titular y por orden ----------
 
