@@ -6,7 +6,7 @@ import { Field, Modal, Pill, State } from '../ui';
 import { isoToLocal, localToIso } from '../../crm/api';
 
 interface TestRow { id: string; nombre: string; descripcion: string; tipo: 'test' | 'landing'; starts_at: string; ends_at: string | null; stable_from: string | null }
-interface VariantRow { test_id: string; code: string; nombre: string; titular_key: string; titular: string; bajada: string; orden_key: string; orden: string; sort: number }
+interface VariantRow { test_id: string; code: string; nombre: string; titular_key: string; titular: string; bajada: string; orden_key: string; orden: string; sort: number; retired_at: string | null }
 interface EventRow { id?: string; test_id: string; at: string; until: string | null; descripcion: string; variants: string[] | null }
 
 const load = async () => {
@@ -87,7 +87,7 @@ function TestModal({ test, variants, events, taken, onClose, onSaved }: {
     nombre: test?.nombre ?? '', descripcion: test?.descripcion ?? '', tipo: test?.tipo ?? ('test' as const),
     inicio: isoToLocal(test?.starts_at ?? new Date().toISOString()), fin: isoToLocal(test?.ends_at ?? null), estable: isoToLocal(test?.stable_from ?? null),
   });
-  const [vars, setVars] = useState(variants.map((x) => ({ ...x })));
+  const [vars, setVars] = useState(variants.map((x) => ({ ...x, salio: isoToLocal(x.retired_at) })));
   const [evs, setEvs] = useState(events.map((e) => ({ ...e, at: isoToLocal(e.at), until: isoToLocal(e.until), vs: (e.variants ?? []).join(', ') })));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +114,7 @@ function TestModal({ test, variants, events, taken, onClose, onSaved }: {
       if (removed.length) unwrap(await supabase.from('landing_test_variants').delete().eq('test_id', id).in('code', removed));
       if (vars.length) unwrap(await supabase.from('landing_test_variants').upsert(vars.map((x, i) => ({
         test_id: id, code: x.code.trim(), nombre: x.nombre.trim() || x.code.trim(), titular_key: x.titular_key.trim(), titular: x.titular.trim(),
-        bajada: x.bajada.trim(), orden_key: x.orden_key.trim(), orden: x.orden.trim(), sort: i + 1,
+        bajada: x.bajada.trim(), orden_key: x.orden_key.trim(), orden: x.orden.trim(), sort: i + 1, retired_at: localToIso(x.salio),
       }))));
       // Eventos: se reemplazan todos.
       if (test) unwrap(await supabase.from('landing_test_events').delete().eq('test_id', id));
@@ -142,7 +142,7 @@ function TestModal({ test, variants, events, taken, onClose, onSaved }: {
     }
   };
 
-  const setVar = (i: number, k: keyof VariantRow, val: string) => setVars((xs) => xs.map((x, j) => (j === i ? { ...x, [k]: val } : x)));
+  const setVar = (i: number, k: keyof VariantRow | 'salio', val: string) => setVars((xs) => xs.map((x, j) => (j === i ? { ...x, [k]: val } : x)));
 
   return (
     <Modal title={test ? `Editar · ${test.nombre}` : 'Nuevo test de landing'} onClose={onClose} wide>
@@ -170,11 +170,13 @@ function TestModal({ test, variants, events, taken, onClose, onSaved }: {
                 <input className="field" value={x.titular} onChange={(e) => setVar(i, 'titular', e.target.value)} placeholder="Texto del titular" aria-label="Titular" />
                 <input className="field lte__key" value={x.orden_key} onChange={(e) => setVar(i, 'orden_key', e.target.value)} placeholder="Orden (1, 2…)" aria-label="Clave del orden" />
                 <input className="field" value={x.orden} onChange={(e) => setVar(i, 'orden', e.target.value)} placeholder="Qué es ese orden" aria-label="Orden" />
+                <input className="field" type="datetime-local" value={x.salio} onChange={(e) => setVar(i, 'salio', e.target.value)} title="Salió del test (vacío = sigue)" aria-label="Salió del test" />
                 <button type="button" className="icon-btn" onClick={() => setVars((xs) => xs.filter((_, j) => j !== i))} aria-label="Quitar versión">✕</button>
               </div>
             ))}
           </div>
-          <button type="button" className="link link--btn" onClick={() => setVars((xs) => [...xs, { test_id: test?.id ?? '', code: '', nombre: '', titular_key: '', titular: '', bajada: '', orden_key: '', orden: '', sort: xs.length + 1 }])}>+ Versión</button>
+          <p className="muted" style={{ margin: '4px 0', fontSize: 12 }}>La última columna es desde cuándo la versión salió del test (vacía = sigue).</p>
+          <button type="button" className="link link--btn" onClick={() => setVars((xs) => [...xs, { test_id: test?.id ?? '', code: '', nombre: '', titular_key: '', titular: '', bajada: '', orden_key: '', orden: '', sort: xs.length + 1, retired_at: null, salio: '' }])}>+ Versión</button>
         </div>
 
         <div className="afield--full">
