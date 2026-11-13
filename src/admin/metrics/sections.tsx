@@ -43,6 +43,13 @@ const META_DEFS: Def[] = [
   { key: 'lpv', label: 'Visitas a la landing (Meta)', fmt: 'num', tip: 'Cargas de la landing que registra el píxel de Meta (landing_page_view).', up: true },
 ];
 
+/** Bloques de la lista de «Cómo viene la pauta» (los que no van en grande). */
+const KV_GROUPS: [string, string[]][] = [
+  ['Registros y visitas', ['optins', 'optins_sin_anuncio', 'calificados', 'visitas_pauta', 'visitas', 'calificados_por_visita']],
+  ['Grupo de WhatsApp', ['grupo', 'pct_grupo', 'grupo_pauta']],
+  ['Contacto del equipo', ['tasa_contacto', 'pickup', 'pct_contestaron', 'calificacion_real']],
+];
+
 /** Una fila por día con todo junto: lo de la base + lo de Meta. */
 function dailyRows(m: AdsMetrics, meta: MetaState) {
   const md = meta.kind === 'ok' ? new Map(meta.data.por_dia.map((d) => [d.dia, d])) : null;
@@ -66,41 +73,63 @@ export function PautaSection({ m, meta }: { m: AdsMetrics; meta: MetaState }) {
   const chartDef = chartDefs.find((d) => d.key === metric) ?? SUMMARY[1];
   const cols = [...SUMMARY, ...(metaOk ? META_DEFS.filter((d) => ['spend', 'cpl', 'cpl_calificado', 'cpm', 'ctr', 'clicks', 'lpv'].includes(d.key)) : [])];
 
+  const val = (d: Def) => (m.resumen as Record<string, unknown>)[d.key];
+  const metaVal = (d: Def) => (metaTotal as Record<string, unknown> | null)?.[d.key];
+  const kvRow = (d: Def, v: unknown) => (
+    <div key={d.key} className="kv__row">
+      <dt><WithTip tip={d.tip}>{d.label}</WithTip></dt>
+      <dd>{fmt(v, d.fmt)} <TrendArrow t={trend(d, today?.[d.key], yest?.[d.key])} /></dd>
+    </div>
+  );
+  // El resto de los números, agrupados por tema (son los mismos que antes iban en una sola lista).
+  const grouped = KV_GROUPS.flatMap(([, keys]) => keys);
+  const groups = [...KV_GROUPS, ['Otros', rest.map((d) => d.key).filter((k) => !grouped.includes(k))] as [string, string[]]]
+    .map(([title, keys]) => [title, rest.filter((d) => keys.includes(d.key))] as const)
+    .filter(([, ds]) => ds.length);
+
   return (
     <>
-      <div className="mx__stats">
-        {defs.map((d) => (
-          <Stat key={d.key} def={d} value={(m.resumen as Record<string, unknown>)[d.key]} today={today?.[d.key]} yesterday={yest?.[d.key]} />
-        ))}
-        {metaTotal && META_DEFS.slice(0, 3).map((d) => (
-          <Stat key={d.key} def={d} value={(metaTotal as Record<string, unknown>)[d.key]} today={today?.[d.key]} yesterday={yest?.[d.key]} />
-        ))}
+      <div className="mx__group">
+        <span className="eyebrow mx__group-title">Resultados</span>
+        <div className="mx__stats">
+          {defs.map((d) => (
+            <Stat key={d.key} def={d} value={val(d)} today={today?.[d.key]} yesterday={yest?.[d.key]} />
+          ))}
+        </div>
       </div>
-      <div className="glass panel">
-        <dl className="kv mx__kv">
-          {rest.map((d) => (
-            <div key={d.key} className="kv__row">
-              <dt><WithTip tip={d.tip}>{d.label}</WithTip></dt>
-              <dd>{fmt((m.resumen as Record<string, unknown>)[d.key], d.fmt)} <TrendArrow t={trend(d, today?.[d.key], yest?.[d.key])} /></dd>
-            </div>
-          ))}
-          {metaTotal && META_DEFS.slice(3).map((d) => (
-            <div key={d.key} className="kv__row">
-              <dt><WithTip tip={d.tip}>{d.label}</WithTip></dt>
-              <dd>{fmt((metaTotal as Record<string, unknown>)[d.key], d.fmt)} <TrendArrow t={trend(d, today?.[d.key], yest?.[d.key])} /></dd>
-            </div>
-          ))}
-          {metaOk && (
-            <div className="kv__row">
-              <dt><WithTip tip="Anuncios de las campañas activas según su estado de entrega en Meta (los de campañas pausadas no se cuentan).">Anuncios</WithTip></dt>
-              <dd>{metaOk.estados.activos} activos · {metaOk.estados.en_revision} en revisión · {metaOk.estados.rechazados} rechazados{metaOk.estados.con_problemas ? ` · ${metaOk.estados.con_problemas} con problemas` : ''}</dd>
-            </div>
-          )}
-        </dl>
+      {metaTotal && (
+        <div className="mx__group">
+          <span className="eyebrow mx__group-title">Inversión en Meta</span>
+          <div className="mx__stats mx__stats--3">
+            {META_DEFS.slice(0, 3).map((d) => (
+              <Stat key={d.key} def={d} value={metaVal(d)} today={today?.[d.key]} yesterday={yest?.[d.key]} />
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="mx__blocks">
+        {groups.map(([title, ds]) => (
+          <div key={title} className="glass panel mx__block">
+            <h3 className="panel__title">{title}</h3>
+            <dl className="kv">{ds.map((d) => kvRow(d, val(d)))}</dl>
+          </div>
+        ))}
+        {metaTotal && metaOk && (
+          <div className="glass panel mx__block mx__block--wide">
+            <h3 className="panel__title">Meta Ads</h3>
+            <dl className="kv mx__kvcols">
+              {META_DEFS.slice(3).map((d) => kvRow(d, metaVal(d)))}
+              <div className="kv__row">
+                <dt><WithTip tip="Anuncios de las campañas activas según su estado de entrega en Meta (los de campañas pausadas no se cuentan).">Anuncios</WithTip></dt>
+                <dd>{metaOk.estados.activos} activos · {metaOk.estados.en_revision} en revisión · {metaOk.estados.rechazados} rechazados{metaOk.estados.con_problemas ? ` · ${metaOk.estados.con_problemas} con problemas` : ''}</dd>
+              </div>
+            </dl>
+          </div>
+        )}
       </div>
       <div className="glass panel">
         <div className="panel__head">
-          <h3 className="panel__title"><WithTip tip={chartDef.tip}>Por día</WithTip></h3>
+          <h3 className="panel__title"><WithTip tip={chartDef.tip}>Día por día</WithTip></h3>
           <select className="field field--select mx__select" value={metric} onChange={(e) => setMetric(e.target.value)} aria-label="Métrica del gráfico">
             {chartDefs.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
           </select>
