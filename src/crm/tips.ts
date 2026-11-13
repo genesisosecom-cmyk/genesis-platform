@@ -1,6 +1,7 @@
 /** Textos de los ⓘ del tracker de la SDR y de la vista del closer: qué es cada dato y qué cargar. */
 
 export const LEAD_TIPS = {
+  move: 'Pasa el lead a la lista que elijas. Queda ahí hasta que cargues un resultado nuevo (contestó, califica, listo o agendó); desde ahí vuelve a moverse solo. Finalizados y No cuentan te piden el motivo. Si tenía una call agendada, la call no se cancela.',
   // Tarjeta del lead (tracker de la SDR)
   level: 'Prioridad del lead según lo que invierte por día en Meta y si calificó: Alto, Medio o Potencial. Trabajá primero los Altos.',
   stage: 'Pre-clase hasta que pasa la clase del lanzamiento; después, Post-clase (o antes, si ya aplicó). Se calcula solo.',

@@ -155,6 +155,22 @@ export function inList(key: ListKey, r: LeadRow, me: string | null): boolean {
   }
 }
 
+/** En qué lista principal del SDR está el lead (para «Mover a…»). */
+export type MoveTarget = 'mios' | 'seguimientos' | 'finalizados' | 'bolsa' | 'no_cuentan';
+export const MOVE_TARGETS: { key: MoveTarget; label: string }[] = [
+  { key: 'mios', label: 'Mis leads' },
+  { key: 'seguimientos', label: 'Seguimientos' },
+  { key: 'finalizados', label: 'Finalizados' },
+  { key: 'bolsa', label: 'Por asignar' },
+  { key: 'no_cuentan', label: 'No cuentan' },
+];
+export function currentList(r: LeadRow): MoveTarget {
+  if (isNoCuenta(r)) return 'no_cuentan';
+  if (isDone(r)) return 'finalizados';
+  if (!r.lead.sdr_id) return 'bolsa';
+  return inFollowup(r) ? 'seguimientos' : 'mios';
+}
+
 // ---------- Para revisar ----------
 
 export interface ReviewItem {

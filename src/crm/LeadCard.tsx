@@ -9,6 +9,7 @@ import {
   fetchLeadEvents,
   finalizeLead,
   releaseLead,
+  moveLead,
   reopenLead,
   scheduleCall,
   setNoCuenta,
@@ -20,6 +21,7 @@ import {
 import {
   CADENCES,
   CADENCE_STEPS,
+  currentList,
   daysAgo,
   FINALIZE_REASONS,
   followupDue,
@@ -30,6 +32,7 @@ import {
   isNoCuenta,
   leadLevel,
   LEVEL_LABEL,
+  MOVE_TARGETS,
   NO_CUENTA_REASONS,
   stageOf,
   summaryLine,
@@ -225,6 +228,20 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
 
           {canEdit && (
             <div className="lcard__actions">
+              <span className="with-tip lcard__move">
+                <select className="field field--select lcard__moveselect" value="" disabled={busy} aria-label="Mover a otra lista"
+                  onChange={(e) => {
+                    const to = e.target.value as typeof MOVE_TARGETS[number]['key'];
+                    if (to === 'finalizados') return setPanel('finalizar');
+                    if (to === 'no_cuentan') return setPanel('no_cuenta');
+                    if (to === 'bolsa' && !window.confirm('¿Mover a «Por asignar»? El lead queda sin SDR.')) return;
+                    run(() => moveLead(row.id, to));
+                  }}>
+                  <option value="">Mover a…</option>
+                  {MOVE_TARGETS.filter((m) => m.key !== currentList(row)).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                </select>
+                <InfoTip text={T.move} />
+              </span>
               {!isFinalized(row) && !isBooked(row) && !isNoCuenta(row) && (
                 <>
                   {row.sdr_qualified && row.readiness !== 'nutricion' && (
