@@ -49,7 +49,8 @@ export const isNoCuenta = (r: LeadLaunch) => Boolean(r.no_cuenta_reason);
 export const isFinalized = (r: LeadLaunch) => Boolean(r.finalized_at);
 export const isBooked = (r: LeadLaunch) => r.agendo === true;
 export const isConfirmed = (r: LeadLaunch) => Boolean(r.class_confirmed_at);
-export const inFollowup = (r: LeadRow) => Boolean(r.lead.sdr_id) && !isBooked(r) && !isFinalized(r) && !isNoCuenta(r) && !isConfirmed(r) && Boolean(r.followup_started_at);
+export const isSendResource = (r: LeadLaunch) => Boolean(r.send_resource_at);
+export const inFollowup = (r: LeadRow) => Boolean(r.lead.sdr_id) && !isBooked(r) && !isFinalized(r) && !isNoCuenta(r) && !isConfirmed(r) && !isSendResource(r) && Boolean(r.followup_started_at);
 export const followupDue = (r: LeadRow, now = Date.now()) => inFollowup(r) && Boolean(r.next_followup_at && Date.parse(r.next_followup_at) <= now);
 /** Ya no requiere acción del SDR: agendado, finalizado o vendido. */
 export const isDone = (r: LeadRow) => isFinalized(r) || isBooked(r);
@@ -120,12 +121,13 @@ export function byLevel(a: LeadRow, b: LeadRow) {
 
 // ---------- Listas del SDR ----------
 
-export type ListKey = 'bolsa' | 'mios' | 'seguimientos' | 'confirmados' | 'finalizados' | 'aplicaron' | 'sin_calificar' | 'agentes' | 'no_cuentan';
+export type ListKey = 'bolsa' | 'mios' | 'seguimientos' | 'recurso' | 'confirmados' | 'finalizados' | 'aplicaron' | 'sin_calificar' | 'agentes' | 'no_cuentan';
 
 export const LISTS: { key: ListKey; label: string; hint: string; more?: boolean }[] = [
   { key: 'bolsa', label: 'Por asignar', hint: 'Calificados sin SDR. Tomá uno para trabajarlo.' },
   { key: 'mios', label: 'Mis leads', hint: 'Los tuyos que todavía no agendaron ni están en seguimiento.' },
   { key: 'seguimientos', label: 'Seguimientos', hint: 'No contestaron, no calificaron, no estaban listos o no agendaron. Te aparecen según la cadencia.' },
+  { key: 'recurso', label: 'Enviar recurso', hint: 'Les tenés que mandar un recurso. No les llegan recordatorios de seguimiento. Cuando lo mandes, movelos a otra lista.' },
   { key: 'confirmados', label: 'Confirmados a la clase', hint: 'Confirmaron que van a la clase. No les llegan recordatorios de seguimiento. Para sacarlos, movelos a otra lista.' },
   { key: 'finalizados', label: 'Finalizados', hint: 'Agendados o finalizados. Se pueden reabrir.' },
   { key: 'aplicaron', label: 'Aplicaron', hint: 'Aplicaron al formulario del webinar en vivo.' },
@@ -143,7 +145,9 @@ export function inList(key: ListKey, r: LeadRow, me: string | null): boolean {
     case 'bolsa':
       return !r.lead.sdr_id && r.califica === true && !isFinalized(r);
     case 'mios':
-      return mine(r) && !isDone(r) && !inFollowup(r) && !isConfirmed(r);
+      return mine(r) && !isDone(r) && !inFollowup(r) && !isConfirmed(r) && !isSendResource(r);
+    case 'recurso':
+      return mine(r) && !isDone(r) && isSendResource(r);
     case 'confirmados':
       return mine(r) && !isDone(r) && isConfirmed(r);
     case 'seguimientos':
@@ -160,10 +164,11 @@ export function inList(key: ListKey, r: LeadRow, me: string | null): boolean {
 }
 
 /** En qué lista principal del SDR está el lead (para «Mover a…»). */
-export type MoveTarget = 'mios' | 'seguimientos' | 'confirmados' | 'finalizados' | 'bolsa' | 'no_cuentan';
+export type MoveTarget = 'mios' | 'seguimientos' | 'recurso' | 'confirmados' | 'finalizados' | 'bolsa' | 'no_cuentan';
 export const MOVE_TARGETS: { key: MoveTarget; label: string }[] = [
   { key: 'mios', label: 'Mis leads' },
   { key: 'seguimientos', label: 'Seguimientos' },
+  { key: 'recurso', label: 'Enviar recurso' },
   { key: 'confirmados', label: 'Confirmados a la clase' },
   { key: 'finalizados', label: 'Finalizados' },
   { key: 'bolsa', label: 'Por asignar' },
@@ -173,6 +178,7 @@ export function currentList(r: LeadRow): MoveTarget {
   if (isNoCuenta(r)) return 'no_cuentan';
   if (isDone(r)) return 'finalizados';
   if (!r.lead.sdr_id) return 'bolsa';
+  if (isSendResource(r)) return 'recurso';
   if (isConfirmed(r)) return 'confirmados';
   return inFollowup(r) ? 'seguimientos' : 'mios';
 }
