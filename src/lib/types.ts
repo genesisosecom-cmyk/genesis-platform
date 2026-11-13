@@ -263,6 +263,8 @@ export interface LeadLaunch {
   no_cuenta_reason: string | null;
   sdr_notes: string | null;
   asked_agents: boolean;
+  /** Cuándo confirmó que va a la clase (null = no confirmó). */
+  class_confirmed_at: string | null;
   agents_sent: { agents: string[]; channel: string; at: string; by: string }[];
   created_at: string;
   updated_at: string;
