@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import CallScheduler from './CallScheduler';
 import { Pill } from '../admin/ui';
 import { fmtDate, fmtDateTime } from '../lib/format';
 import type { CrmAgent, LeadEvent, SalesRep } from '../lib/types';
@@ -7,7 +8,6 @@ import {
   dial,
   fetchLeadEvents,
   finalizeLead,
-  localToIso,
   releaseLead,
   reopenLead,
   scheduleCall,
@@ -81,8 +81,6 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
   const [events, setEvents] = useState<LeadEvent[] | null>(null);
   const [showEvents, setShowEvents] = useState(false);
   const [panel, setPanel] = useState<null | 'agendar' | 'finalizar' | 'no_cuenta' | 'seguimiento'>(null);
-  const [closerId, setCloserId] = useState('');
-  const [callAt, setCallAt] = useState('');
   const [fuNote, setFuNote] = useState('');
   const [agentsOpen, setAgentsOpen] = useState(false);
 
@@ -260,19 +258,8 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
           {!canEdit && !canClaim && l.sdr_id && <p className="muted">Lo trabaja {owner?.name ?? 'otro SDR'}.</p>}
 
           {panel === 'agendar' && (
-            <div className="lcard__panel">
-              <select className="field field--select" value={closerId} onChange={(e) => setCloserId(e.target.value)}>
-                <option value="">Elegí el closer</option>
-                {closers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <input className="field" type="datetime-local" value={callAt} onChange={(e) => setCallAt(e.target.value)} />
-              <button
-                className="btn btn--primary btn--sm"
-                disabled={busy || !closerId || !callAt}
-                onClick={() => run(() => scheduleCall(row.id, closerId, localToIso(callAt)!, ''), () => setPanel(null))}
-              >
-                Agendar
-              </button>
+            <div className="lcard__panel lcard__panel--col">
+              <CallScheduler closers={closers} busy={busy} onSubmit={(cid, iso) => run(() => scheduleCall(row.id, cid, iso, ''), () => setPanel(null))} />
             </div>
           )}
 
