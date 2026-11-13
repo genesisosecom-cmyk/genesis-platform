@@ -169,6 +169,8 @@ export const followupDone = (id: string, responded: boolean, note: string) =>
   rpc('crm_followup_done', { p_ll: id, p_responded: responded, p_note: note });
 export const finalizeLead = (id: string, reason: string) => rpc('crm_finalize', { p_ll: id, p_reason: reason });
 export const reopenLead = (id: string) => rpc('crm_reopen', { p_ll: id });
+/** Mover a mano a una lista del SDR (Finalizados y No cuentan van con su motivo). */
+export const moveLead = (id: string, list: 'mios' | 'seguimientos' | 'bolsa') => rpc('crm_move_lead', { p_ll: id, p_list: list });
 export const setNoCuenta = (id: string, reason: string | null) => rpc('crm_set_no_cuenta', { p_ll: id, p_reason: reason });
 export const logAgents = (id: string, agentIds: string[], channel: 'whatsapp' | 'copia') =>
   rpc('crm_log_agents', { p_ll: id, p_agents: agentIds, p_channel: channel });
