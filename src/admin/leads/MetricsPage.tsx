@@ -30,11 +30,36 @@ const SECTIONS: [string, string, string][] = [
   ['ventas', 'Ventas', 'Ventas del lanzamiento por programa y cuotas por cobrar.'],
 ];
 
+/** Pestañas del panel: cada una junta secciones del mismo tema (antes iban todas una abajo de la otra). */
+type TabKey = 'pauta' | 'anuncios' | 'landing' | 'registros' | 'ventas';
+const TABS: [TabKey, string, string[]][] = [
+  ['pauta', 'Pauta', ['pauta', 'trafico']],
+  ['anuncios', 'Anuncios', ['anuncios']],
+  ['landing', 'Landing', ['versiones', 'fuentes']],
+  ['registros', 'Registros y equipo', ['respuestas', 'despues']],
+  ['ventas', 'Ventas', ['ventas']],
+];
+const tabOf = (hash: string): TabKey => {
+  const id = hash.replace('#', '');
+  return TABS.find(([k, , secs]) => k === id || secs.includes(id))?.[0] ?? 'pauta';
+};
+
 export default function MetricsPage() {
   const { launches, launchId, picker } = useLaunchPicker();
   const [range, setRange] = useState<RangeKey>('todo');
   const [custom, setCustom] = useState({ from: '', to: todayAR() });
   const { from, to } = rangeDates(range, custom);
+  const [tab, setTab] = useState<TabKey>(() => tabOf(window.location.hash));
+  // Enlaces viejos a una sección (#fuentes, #despues…) abren la pestaña que la tiene.
+  useEffect(() => {
+    const onHash = () => setTab(tabOf(window.location.hash));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const pickTab = (k: TabKey) => {
+    setTab(k);
+    window.history.replaceState(null, '', `#${k}`);
+  };
   return (
     <State loading={launches.loading} error={launches.error} empty={!launchId}>
       {launchId && (
@@ -55,18 +80,20 @@ export default function MetricsPage() {
                 </div>
               )}
             </div>
+            <nav className="tabs mx__tabs" aria-label="Secciones de métricas">
+              {TABS.map(([k, label]) => (
+                <button key={k} type="button" className={`tabs__link tabs__btn${tab === k ? ' active' : ''}`} aria-pressed={tab === k} onClick={() => pickTab(k)}>{label}</button>
+              ))}
+            </nav>
           </div>
-          <nav className="mx__nav" aria-label="Secciones">
-            {SECTIONS.map(([id, label]) => <a key={id} className="chip chip--sm" href={`#${id}`}>{label}</a>)}
-          </nav>
-          <LaunchMetrics key={`${launchId}|${from}|${to}`} launchId={launchId} from={from} to={to} />
+          <LaunchMetrics tab={tab} key={`${launchId}|${from}|${to}`} launchId={launchId} from={from} to={to} />
         </>
       )}
     </State>
   );
 }
 
-function LaunchMetrics({ launchId, from, to }: { launchId: string; from: string | null; to: string | null }) {
+function LaunchMetrics({ tab, launchId, from, to }: { tab: TabKey; launchId: string; from: string | null; to: string | null }) {
   const ads = useAsync(() => fetchAdsMetrics(launchId, from, to), [launchId, from, to]);
   useLiveReload([{ table: 'lead_launches', filter: `launch_id=eq.${launchId}` }, 'sales_calls', 'payments'], ads.reload, { delayMs: 5000 });
   const m = ads.data;
@@ -95,18 +122,33 @@ function LaunchMetrics({ launchId, from, to }: { launchId: string; from: string 
           </div>
           {meta && meta.kind !== 'ok' && <MetaNotice meta={meta} />}
 
-          <Section id="pauta"><PautaSection m={m} meta={metaState} /></Section>
-          <Section id="trafico">{meta ? <TrafficSection meta={meta} /> : <p className="muted">Cargando Meta…</p>}</Section>
-          <Section id="anuncios">{meta ? <AdsSection meta={meta} /> : <p className="muted">Cargando Meta…</p>}</Section>
-          <Section id="versiones"><LandingTestsSection from={from} to={to} meta={meta} /></Section>
-          <Section id="fuentes"><SourcesSection m={m} /></Section>
-          <Section id="respuestas"><AnswersSection m={m} /></Section>
-          <Section id="despues"><AfterSection m={m} team={<TeamMetricsPanel launchId={launchId} fixedRange={{ from: m.desde, to: m.hasta }} />} /></Section>
-          <Section id="ventas"><SalesSection m={m} /></Section>
+          {/* Todas las pestañas quedan montadas (solo se ocultan): así no se pierden filtros ni se vuelve a pedir nada al cambiar. */}
+          <TabPanel k="pauta" tab={tab}>
+            <Section id="pauta"><PautaSection m={m} meta={metaState} /></Section>
+            <Section id="trafico">{meta ? <TrafficSection meta={meta} /> : <p className="muted">Cargando Meta…</p>}</Section>
+          </TabPanel>
+          <TabPanel k="anuncios" tab={tab}>
+            <Section id="anuncios">{meta ? <AdsSection meta={meta} /> : <p className="muted">Cargando Meta…</p>}</Section>
+          </TabPanel>
+          <TabPanel k="landing" tab={tab}>
+            <Section id="versiones"><LandingTestsSection from={from} to={to} meta={meta} /></Section>
+            <Section id="fuentes"><SourcesSection m={m} /></Section>
+          </TabPanel>
+          <TabPanel k="registros" tab={tab}>
+            <Section id="respuestas"><AnswersSection m={m} /></Section>
+            <Section id="despues"><AfterSection m={m} team={<TeamMetricsPanel launchId={launchId} fixedRange={{ from: m.desde, to: m.hasta }} />} /></Section>
+          </TabPanel>
+          <TabPanel k="ventas" tab={tab}>
+            <Section id="ventas"><SalesSection m={m} /></Section>
+          </TabPanel>
         </div>
       )}
     </State>
   );
+}
+
+function TabPanel({ k, tab, children }: { k: TabKey; tab: TabKey; children: React.ReactNode }) {
+  return <div className="mx__tab" role="tabpanel" hidden={k !== tab}>{children}</div>;
 }
 
 function Section({ id, children }: { id: string; children: React.ReactNode }) {

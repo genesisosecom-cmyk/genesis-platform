@@ -1381,22 +1381,42 @@ html { scrollbar-gutter: stable; }
 }
 
 /* ---------- Panel de métricas de pauta ---------- */
-.mx__filters { position: sticky; top: 0; z-index: 5; padding: 10px 0; margin-bottom: 8px; background: linear-gradient(var(--bg) 70%, transparent); }
-.mx__nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; }
-.mx__nav .chip { white-space: nowrap; }
+.mx__filters { position: sticky; top: 0; z-index: 5; padding: 10px 0 0; margin-bottom: 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.mx__filters > .filters { margin-bottom: 4px; }
+.mx__tabs { margin: 6px 0 0; border-bottom: 0; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+.mx__tabs .tabs__btn { white-space: nowrap; }
+.mx__tab { display: flex; flex-direction: column; }
+.mx__tab[hidden] { display: none; }
+.mx__tab > .mx__section:first-child .mx__title { margin-top: 8px; }
 .mx.is-loading { opacity: 0.6; transition: opacity 0.2s; }
 .mx__meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; margin-bottom: 8px; }
 .mx__section { scroll-margin-top: 72px; display: flex; flex-direction: column; gap: 14px; }
 .mx__title { margin-top: 40px; margin-bottom: 0; }
-.mx__stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 40%), 1fr)); gap: 12px; }
+.mx__stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.mx__stats--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 50%; }
+.mx__group { display: flex; flex-direction: column; gap: 8px; }
+.mx__group-title { color: var(--muted); }
+.mx__blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px; align-items: start; }
+.mx__block .panel__title { margin-bottom: 6px; }
+.mx__block--wide { grid-column: 1 / -1; }
+.mx__kvcols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); column-gap: 28px; }
+.mx__block .kv dd { display: inline-flex; gap: 8px; align-items: baseline; justify-content: flex-end; }
+@media (max-width: 1100px) { .mx__stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .mx__stats--3 { max-width: none; } }
+@media (max-width: 560px) {
+  .mx__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .mx__stats--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .mx__stat { padding: 14px 12px; }
+  .mx__stat .eyebrow { letter-spacing: 0.06em; font-size: 10px; }
+  .mx__stat .kpi__value { font-size: 20px; white-space: nowrap; }
+  .mx__stats.mx__stats--3 .mx__stat .kpi__value { font-size: 16px; }
+}
 .mx__stat .kpi__value { font-size: 24px; }
 .mx__stat-foot { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; min-height: 14px; }
-.mx__kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); column-gap: 28px; }
-.mx__kv .kv__row:last-child { border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
-.mx__kv dd { display: inline-flex; gap: 8px; align-items: baseline; justify-content: flex-end; }
 .mx__select { width: auto; padding: 7px 34px 7px 12px; font-size: 13px; }
 .mx__daytable { margin-top: 10px; max-height: 360px; overflow: auto; }
-.mx__daytable th { position: sticky; top: 0; background: #120d0a; }
+.mx__daytable th { position: sticky; top: 0; z-index: 1; background: #120d0a; }
+.mx__daytable th:first-child, .mx__daytable td:first-child { position: sticky; left: 0; background: #120d0a; }
+.mx__daytable th:first-child { z-index: 2; }
 .mx__winner p { margin: 0; }
 .mx__versions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .mx__version.is-winner { border-color: rgba(12, 163, 12, 0.45); }
@@ -1417,7 +1437,7 @@ html { scrollbar-gutter: stable; }
 .mx__colsmenu { position: relative; }
 .mx__colslist { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 230px; background: #17110c; }
 @media (max-width: 900px) { .mx__versions { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .mx__kv { grid-template-columns: 1fr; } .mx__filters { position: static; } }
+@media (max-width: 560px) { .mx__filters { position: static; } }
 .mx__day { white-space: nowrap; }
 .table--num td, .mx__ads td { white-space: nowrap; }
 .mx__ads td:first-child { white-space: normal; min-width: 260px; }
