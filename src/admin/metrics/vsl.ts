@@ -81,23 +81,21 @@ export interface Retention {
 }
 
 /**
- * Suma las curvas de varios días (usuarios por segundo) y la pasa a % del inicio.
- * vTurb da «usuarios en cada segundo» (grouped_timed). Si la serie baja siempre es retención;
- * si no (usuarios que se fueron en ese segundo), se acumula desde el final.
+ * Suma las curvas de varios días y la pasa a % de los que dieron play.
+ * vTurb (grouped_timed) da cuántos usuarios dejaron de mirar en cada segundo.
  */
 export function retentionOf(days: VslDay[], dur: number | null, pitch: number | null): Retention | null {
   if (!dur) return null;
   const sum = new Map<number, number>();
-  for (const d of days) for (const [s, u] of d.curva ?? []) sum.set(s, (sum.get(s) ?? 0) + u);
+  for (const d of days) for (const [s0, u] of d.curva ?? []) { const s = Math.max(0, Math.min(dur, Math.round(s0))); sum.set(s, (sum.get(s) ?? 0) + u); }
   if (!sum.size) return null;
   const arr: number[] = Array.from({ length: dur + 1 }, (_, s) => sum.get(s) ?? 0);
-  const nonIncreasing = arr.every((v, i) => i === 0 || v <= arr[i - 1] * 1.02 + 1);
-  let surv = arr;
-  if (!nonIncreasing) {
-    surv = [...arr];
-    for (let i = surv.length - 2; i >= 0; i--) surv[i] += surv[i + 1];
-  }
-  const base = Math.max(...surv.slice(0, 3));
+  // Comprobado con datos reales: grouped_timed es dispersa y average_watched_time es el promedio
+  // de esos segundos, o sea «en qué segundo dejó de mirar cada uno». La retención en t es la
+  // cantidad que se fue en t o después, sobre el total.
+  const surv = [...arr];
+  for (let i = surv.length - 2; i >= 0; i--) surv[i] += surv[i + 1];
+  const base = surv[0];
   if (base <= 0) return null;
   const pctAt = (sec: number) => Math.min(100, (surv[Math.max(0, Math.min(dur, Math.round(sec)))] / base) * 100);
   const curve = Array.from({ length: 101 }, (_, p) => pctAt(Math.min(dur - 1, (p / 100) * dur)));
