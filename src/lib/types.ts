@@ -269,6 +269,8 @@ export interface LeadLaunch {
   class_confirmed_at: string | null;
   /** Desde cuándo está en «Enviar recurso» (null = no está). */
   send_resource_at: string | null;
+  /** Desde cuándo está en «Ruta a la clase» (null = no está). */
+  class_route_at: string | null;
   agents_sent: { agents: string[]; channel: string; at: string; by: string }[];
   created_at: string;
   updated_at: string;

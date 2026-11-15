@@ -134,6 +134,7 @@ export default function LeadCard({ row, ctx, defaultOpen = false }: { row: LeadR
           {row.route === 'aplicado' && <Pill tone="ok">Aplicó</Pill>}
           {row.class_confirmed_at && <Pill tone="ok">Confirmó la clase</Pill>}
           {row.send_resource_at && <Pill tone="accent">Enviar recurso</Pill>}
+          {row.class_route_at && <Pill tone="accent">Ruta a la clase</Pill>}
           {row.asked_agents && <Pill tone="accent">Pidió agentes</Pill>}
           {l.possible_duplicate && <Pill tone="warn">Posible duplicado</Pill>}
         </div>
