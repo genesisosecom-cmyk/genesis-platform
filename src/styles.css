@@ -1605,3 +1605,6 @@ html { scrollbar-gutter: stable; }
 .onb-steps { display: inline-flex; gap: 3px; vertical-align: middle; }
 .onb-steps span { width: 8px; height: 8px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
 .onb-steps span.is-on { background: var(--accent); }
+.onb-detail { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 28px; }
+.onb-detail__notes { position: sticky; top: 24px; }
+@media (max-width: 900px) { .onb-detail { grid-template-columns: 1fr; } .onb-detail__notes { position: static; } }

@@ -66,11 +66,11 @@ export default function OnboardingDetailPage() {
                 </div>
               </div>
 
-              <div className="two-col two-col--top">
+              <div className="onb-detail">
                 <section className="glass panel">
                   <OnboardingAnswers answers={row.answers} />
                 </section>
-                <section className="glass panel">
+                <section className="glass panel onb-detail__notes">
                   <h3 className="panel__title">Notas internas</h3>
                   <textarea className="field field--area" rows={8} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Diagnóstico, plan para el kickoff, alertas…" />
                   <div className="aform__actions aform__actions--start">
