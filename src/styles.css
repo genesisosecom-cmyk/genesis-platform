@@ -1623,3 +1623,24 @@ html { scrollbar-gutter: stable; }
 .sop__actions { display: inline-flex; gap: 6px; }
 .sop__actions .btn { display: inline-flex; align-items: center; gap: 6px; }
 .sop__body { white-space: pre-wrap; line-height: 1.7; }
+
+/* ---------- VSL de la landing ---------- */
+.vsl__sync { font-size: 12px; }
+.vsl__warn { margin: 0; padding: 10px 14px; border-radius: 12px; font-size: 13px; background: rgba(250, 178, 25, 0.1); border: 1px solid rgba(250, 178, 25, 0.35); }
+.vsl__kpis { margin-bottom: 0; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.vsl__ret { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; font-size: 14px; }
+.vsl__retcell { white-space: nowrap; }
+.vsl__table td:first-child, .vsl__cmp td:first-child { white-space: nowrap; }
+.vsl__cmp th { vertical-align: top; }
+.vsl__players code { font-size: 12px; }
+.vsl__players td { white-space: nowrap; }
+@media (max-width: 640px) {
+  .vsl__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .vsl__kpis .kpi { padding: 14px; }
+  .vsl__kpis .kpi__value { font-size: 22px; }
+  .vsl__cmp { font-size: 13px; }
+  .vsl__cmp th, .vsl__cmp td { padding: 9px 5px; letter-spacing: 0.02em; }
+  .vsl__cmp td:first-child { white-space: normal; min-width: 104px; }
+  .vsl__cmp .lt__sub { font-size: 10px; }
+  .vsl__cmp .pill { font-size: 9px; padding: 2px 6px; }
+}

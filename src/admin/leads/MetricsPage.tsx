@@ -10,6 +10,7 @@ import { fetchAdsMetrics } from '../metrics/api';
 import { fetchMeta, type MetaState } from '../metrics/meta';
 import { AfterSection, AnswersSection, PautaSection, SalesSection, SectionTitle, SourcesSection } from '../metrics/sections';
 import LandingTestsSection from '../metrics/LandingTestsSection';
+import VslSection from '../metrics/VslSection';
 import { AdsSection, MetaNotice, TrafficSection } from '../metrics/AdsSection';
 
 const RANGES: [RangeKey, string][] = [
@@ -24,6 +25,7 @@ const SECTIONS: [string, string, string][] = [
   ['trafico', 'Cómo baja el tráfico', 'De las impresiones a los que entran al grupo, solo pauta: qué % sigue en cada paso.'],
   ['anuncios', 'Anuncios', 'Como el Administrador de anuncios, pero con lo que pasa después del clic.'],
   ['versiones', 'Test de versiones', 'El test de landing que está corriendo (d1 contra d3), versión por versión. Los tests anteriores quedan en Configuración CRM.'],
+  ['vsl', 'VSL de la landing', 'Reproducciones, play rate y retención del VSL (vTurb), cruzado con d1. Cada VSL en su período; compara contra el anterior y contra d3 (sin video).'],
   ['fuentes', 'De dónde vienen los opt-ins', 'Visitas y registros por fuente de tráfico.'],
   ['respuestas', 'Qué respondieron', 'Inversión diaria y país de los registros de pauta.'],
   ['despues', 'Después del registro', 'Cómo avanzan los registros con el equipo de ventas.'],
@@ -35,7 +37,7 @@ type TabKey = 'pauta' | 'anuncios' | 'landing' | 'registros' | 'ventas';
 const TABS: [TabKey, string, string[]][] = [
   ['pauta', 'Pauta', ['pauta', 'trafico']],
   ['anuncios', 'Anuncios', ['anuncios']],
-  ['landing', 'Landing', ['versiones', 'fuentes']],
+  ['landing', 'Landing', ['versiones', 'vsl', 'fuentes']],
   ['registros', 'Registros y equipo', ['respuestas', 'despues']],
   ['ventas', 'Ventas', ['ventas']],
 ];
@@ -132,6 +134,7 @@ function LaunchMetrics({ tab, launchId, from, to }: { tab: TabKey; launchId: str
           </TabPanel>
           <TabPanel k="landing" tab={tab}>
             <Section id="versiones"><LandingTestsSection from={from} to={to} meta={meta} /></Section>
+            <Section id="vsl"><VslSection /></Section>
             <Section id="fuentes"><SourcesSection m={m} /></Section>
           </TabPanel>
           <TabPanel k="registros" tab={tab}>
