@@ -11,6 +11,7 @@ import ModulesPage from './pages/ModulesPage';
 import ModuleDetailPage from './pages/ModuleDetailPage';
 import ToolboxPage from './pages/ToolboxPage';
 import OnboardingPage from './pages/OnboardingPage';
+import SopsPage from './pages/SopsPage';
 import AdminLayout from './admin/AdminLayout';
 import OverviewPage from './admin/OverviewPage';
 import UsersPage from './admin/UsersPage';
@@ -83,6 +84,7 @@ export default function App() {
           </Route>
           <Route path="sdr" element={<RequireAuth area="sdr"><SdrPage /></RequireAuth>} />
           <Route path="sdr/:leadLaunchId" element={<RequireAuth area="sdr"><SdrPage /></RequireAuth>} />
+          <Route path="sops" element={<RequireAuth area="sops"><SopsPage /></RequireAuth>} />
           <Route path="closer" element={<RequireAuth area="closer"><CloserPage /></RequireAuth>} />
           <Route path="closer/:callId" element={<RequireAuth area="closer"><CloserPage /></RequireAuth>} />
         </Route>
@@ -106,6 +108,7 @@ export default function App() {
           <Route path="clientes" element={<ClientsPage />} />
           <Route path="clientes/:clientId" element={<ClientDetailPage />} />
           <Route path="onboarding" element={<OnboardingAdminPage />} />
+          <Route path="sops" element={<SopsPage embedded />} />
           <Route path="onboarding/:userId" element={<OnboardingDetailPage />} />
           <Route path="finanzas" element={<FinancePage />} />
           <Route path="leads" element={<LeadsPage />} />

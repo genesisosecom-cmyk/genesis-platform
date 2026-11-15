@@ -1608,3 +1608,18 @@ html { scrollbar-gutter: stable; }
 .onb-detail { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 28px; }
 .onb-detail__notes { position: sticky; top: 24px; }
 @media (max-width: 900px) { .onb-detail { grid-template-columns: 1fr; } .onb-detail__notes { position: static; } }
+
+/* ---------- SOPs ---------- */
+.sops__group { margin-bottom: 8px; }
+.sops__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.sop { display: flex; flex-direction: column; justify-content: space-between; gap: 18px; padding: 20px; }
+.sop:hover { border-color: var(--accent-line); }
+.sop--draft { opacity: 0.6; }
+.sop__main { display: flex; flex-direction: column; gap: 6px; background: none; border: 0; padding: 0; text-align: left; }
+.sop__title { font-size: 18px; font-weight: 500; }
+.sop__desc { font-size: 13px; }
+.sop__foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; }
+.sop__meta { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sop__actions { display: inline-flex; gap: 6px; }
+.sop__actions .btn { display: inline-flex; align-items: center; gap: 6px; }
+.sop__body { white-space: pre-wrap; line-height: 1.7; }
