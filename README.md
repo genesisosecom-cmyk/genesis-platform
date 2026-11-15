@@ -34,6 +34,10 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - Desde la ficha del cliente: **Dar acceso al campus** (crea el usuario ya vinculado y arma el mensaje con los datos de acceso y el link al onboarding), **Vincular usuario existente**, ver las respuestas y **Marcar kickoff hecho** (también pasa el lead del CRM de «Cliente · falta onboarding» a «Cliente», y al revés: el botón del panel closer marca el kickoff en la ficha).
 - Las preguntas están en `src/onboarding/questions.ts`.
 
+**SOPs** — `/sops` (y `/admin/sops`)
+- Los procesos del negocio en un solo lugar, agrupados por área (Ventas, Onboarding, Finanzas…). Cada SOP es un link (artifact, Doc, Loom) o un texto escrito ahí.
+- Lo ven los admins, SDRs y closers; los alumnos no. Cada SOP puede ser para todo el equipo o solo para admins, y quedar como borrador.
+
 Clientes y usuarios se vinculan solos por email (al crear cualquiera de los dos o al cambiar el email del cliente); si el alumno usa otro email se vincula a mano desde la ficha o desde Usuarios.
 
 ## Puesta en marcha

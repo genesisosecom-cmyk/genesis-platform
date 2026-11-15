@@ -41,6 +41,11 @@ export default function AppLayout() {
               Calls
             </NavLink>
           )}
+          {(isAdmin || isSdr || isCloser) && (
+            <NavLink to="/sops" className="topbar__link">
+              SOPs
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink to="/admin" className="topbar__link topbar__link--admin">
               Admin

@@ -9,6 +9,7 @@ import {
   Checklist,
   Coins,
   Doc,
+  Folder,
   Grid,
   Headset,
   Home,
@@ -41,6 +42,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       { to: '/admin', label: 'Resumen', icon: Home, end: true },
       { to: '/admin/tareas', label: 'Tareas', icon: Checklist },
+      { to: '/admin/sops', label: 'SOPs', icon: Folder },
     ],
   },
   {

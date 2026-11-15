@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import FullScreenMessage from '../components/FullScreenMessage';
 import ChangeTempPasswordPage from '../pages/ChangeTempPasswordPage';
 
-type Area = 'admin' | 'campus' | 'sdr' | 'closer';
+type Area = 'admin' | 'campus' | 'sdr' | 'closer' | 'sops';
 
 /** Inicio de cada usuario del equipo de ventas (no ve el campus). */
 export function useTeamHome() {
@@ -33,6 +33,8 @@ export default function RequireAuth({ children, area }: { children: ReactNode; a
   if (area === 'admin' && !isAdmin) return <Navigate to="/" replace />;
   if (area === 'sdr' && !isSdr && !isAdmin) return <Navigate to="/" replace />;
   if (area === 'closer' && !isCloser && !isAdmin) return <Navigate to="/" replace />;
+  // Los SOPs del negocio son para el equipo, no para los alumnos.
+  if (area === 'sops' && !isAdmin && !isSdr && !isCloser) return <Navigate to="/" replace />;
   // SDRs y closers ven solo su panel.
   if (area === 'campus' && isTeamOnly) {
     if (teamHome) return <Navigate to={teamHome} replace />;

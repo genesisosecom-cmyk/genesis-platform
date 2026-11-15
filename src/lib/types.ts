@@ -322,3 +322,20 @@ export interface SalesCall {
   created_at: string;
   updated_at: string;
 }
+
+// ---------- SOPs ----------
+
+export interface Sop {
+  id: string;
+  title: string;
+  area: string;
+  description: string | null;
+  url: string | null;
+  body: string | null;
+  /** equipo = admins, SDRs y closers · admin = solo admins. */
+  audience: 'equipo' | 'admin';
+  position: number;
+  published: boolean;
+  updated_at: string;
+  created_at: string;
+}
