@@ -15,18 +15,29 @@ import { ArrowLeft } from '../components/Icons';
 import { discordVariants } from '../lib/discord';
 import { useContent } from '../content/ContentContext';
 import ClientCommissions from './finance/ClientCommissions';
+import ClientOnboardingPanel from './onboarding/ClientOnboardingPanel';
+import { fetchOnboarding, type OnboardingRow } from '../onboarding/api';
 
 const escape = (v: string) => v.replace(/[\\%_]/g, '\\$&');
 
 async function load(id: string) {
   const client = unwrap(await supabase.from('clients').select('*').eq('id', id).single()) as Client;
-  const [payments, forms] = await Promise.all([fetchPayments(id), fetchForms()]);
+  const [payments, forms, profiles, linked] = await Promise.all([
+    fetchPayments(id),
+    fetchForms(),
+    unwrap(await supabase.from('profiles').select('*').order('full_name')) as Profile[],
+    unwrap(await supabase.from('clients').select('profile_id').not('profile_id', 'is', null)) as { profile_id: string }[],
+  ]);
   let profile: Profile | null = null;
   let progress: LessonProgressRow[] = [];
   let responses: FormResponse[] = [];
+  let onboarding: OnboardingRow | null = null;
   if (client.profile_id) {
-    profile = unwrap(await supabase.from('profiles').select('*').eq('id', client.profile_id).maybeSingle()) as Profile | null;
-    progress = unwrap(await supabase.from('lesson_progress').select('*').eq('user_id', client.profile_id)) as LessonProgressRow[];
+    profile = profiles.find((p) => p.id === client.profile_id) ?? null;
+    [progress, onboarding] = await Promise.all([
+      supabase.from('lesson_progress').select('*').eq('user_id', client.profile_id).then((r) => unwrap(r) as LessonProgressRow[]),
+      fetchOnboarding(client.profile_id),
+    ]);
   }
   // Respuestas del cliente: coinciden por email o por canal de Discord.
   const queries = [
@@ -35,14 +46,15 @@ async function load(id: string) {
   ];
   const found = (await Promise.all(queries)).flatMap((res) => unwrap(res) as FormResponse[]);
   responses = [...new Map(found.map((r) => [r.id, r])).values()].sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
-  return { client, payments, forms, profile, progress, responses };
+  const linkedIds = new Set(linked.map((l) => l.profile_id));
+  return { client, payments, forms, profile, progress, responses, onboarding, profiles, linkedIds };
 }
 
 export default function ClientDetailPage() {
   const { clientId = '' } = useParams();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(() => load(clientId), [clientId]);
-  useLiveReload(['clients', 'payments', 'client_team', 'form_responses'], reload, { delayMs: 1500 });
+  useLiveReload(['clients', 'payments', 'client_team', 'form_responses', 'onboarding_responses'], reload, { delayMs: 1500 });
   const { modules } = useContent();
   const [editing, setEditing] = useState(false);
   const [paymentModal, setPaymentModal] = useState<Payment | 'new' | null>(null);
@@ -71,7 +83,7 @@ export default function ClientDetailPage() {
       <Link to="/admin/clientes" className="back"><ArrowLeft width={16} height={16} /> Clientes</Link>
       <State loading={loading} error={error}>
         {data && (() => {
-          const { client: c, payments, profile, progress, responses, forms } = data;
+          const { client: c, payments, profile, progress, responses, forms, onboarding, profiles, linkedIds } = data;
           const b = clientBalance(c, payments);
           const summary = profile ? summarizeProgress(progress, modules) : null;
           const today = todayISO();
@@ -103,6 +115,26 @@ export default function ClientDetailPage() {
                 <Kpi label="Vencido" value={fmtMoney(b.overdueAmount, c.currency)} tone={b.overdueCount ? 'warn' : undefined} hint={b.overdueCount ? `${b.overdueCount} cuota(s)` : 'Al día'} />
               </div>
               {c.notes && <p className="glass panel notes">{c.notes}</p>}
+
+              <div className="two-col">
+                <ClientOnboardingPanel client={c} profile={profile} row={onboarding} profiles={profiles} linkedIds={linkedIds} onChanged={reload} />
+                <section className="glass panel">
+                  <h3 className="panel__title">Campus{summary ? ` · ${summary.overallPercent}%` : ''}</h3>
+                  {!profile && <p className="muted">Sin usuario del campus vinculado. Dale acceso desde Onboarding o vinculá su usuario si ya tenía uno.</p>}
+                  {profile && summary && (
+                    <div className="list">
+                      {summary.perModule.map((m) => (
+                        <div key={m.module.id} className="row row--static">
+                          <div className="row__body">
+                            <div className="row__head"><span>{m.module.title}</span><span className="muted">{m.done}/{m.total}</span></div>
+                            <ProgressBar percent={m.percent} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
 
               <div className="panel__head">
                 <h3 className="section-title">Cuotas y pagos</h3>
@@ -144,28 +176,6 @@ export default function ClientDetailPage() {
 
               <div className="two-col">
                 <ClientCommissions clientId={c.id} />
-              </div>
-
-              <div className="two-col">
-                <section className="glass panel">
-                  <h3 className="panel__title">Campus</h3>
-                  {!profile && <p className="muted">Sin usuario del campus vinculado. Creá uno en Usuarios con el mismo email y se vincula solo.</p>}
-                  {profile && summary && (
-                    <>
-                      <p className="muted">{profile.email} · {summary.overallPercent}% completado</p>
-                      <div className="list">
-                        {summary.perModule.map((m) => (
-                          <div key={m.module.id} className="row row--static">
-                            <div className="row__body">
-                              <div className="row__head"><span>{m.module.title}</span><span className="muted">{m.done}/{m.total}</span></div>
-                              <ProgressBar percent={m.percent} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </section>
                 <section className="glass panel">
                   <h3 className="panel__title">Formularios pre-llamada ({responses.length})</h3>
                   {responses.length === 0 && <p className="muted">Todavía no respondió formularios.</p>}

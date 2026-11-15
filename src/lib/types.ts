@@ -110,6 +110,8 @@ export interface Client {
   notes: string | null;
   discord_channel: string | null;
   profile_id: string | null;
+  /** Kickoff / onboarding hecho (null = falta). */
+  onboarded_at: string | null;
   created_at: string;
 }
 

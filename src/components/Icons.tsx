@@ -107,3 +107,6 @@ export const Orbit = (p: P) => (
 export const Checklist = (p: P) => (
   <svg {...base} {...p}><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6.5h9M11 12.5h9M11 18.5h9" /></svg>
 );
+export const Rocket = (p: P) => (
+  <svg {...base} {...p}><path d="M5 15c-1.5 1.5-2 4-2 6 2 0 4.5-.5 6-2M9 18l-3-3M14.5 4.5C17 2 20 2 21 3c1 1 1 4-1.5 6.5L13 16l-5-5 6.5-6.5zM8 11l-3.5-.5L7 8h4M13 16l.5 3.5L16 17v-4" /><circle cx="16" cy="8" r="1.5" /></svg>
+);

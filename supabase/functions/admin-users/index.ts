@@ -2,7 +2,7 @@
 // Usa la service role key (solo disponible en el servidor) para crear, eliminar y
 // cambiar contraseñas sin habilitar el registro público.
 //
-// Acciones de superadmin: create, reset_temp_password, delete.
+// Acciones de superadmin: create (opcional client_id para vincularlo a esa ficha), reset_temp_password, delete.
 // Acción del propio usuario: change_temp_password (primer ingreso).
 // Las contraseñas temporales no vencen: valen hasta que el usuario elige la suya.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
@@ -81,6 +81,9 @@ Deno.serve(async (req) => {
       .from('profiles')
       .update({ role, must_change_password: true, temp_password_expires_at: null })
       .eq('id', data.user.id);
+    // Alta desde la ficha del cliente: lo vincula aunque el email no coincida.
+    const clientId = typeof body.client_id === 'string' ? body.client_id : '';
+    if (clientId) await admin.from('clients').update({ profile_id: data.user.id }).eq('id', clientId);
     return json({ id: data.user.id, email, password });
   }
 

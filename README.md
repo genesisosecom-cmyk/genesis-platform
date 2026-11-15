@@ -27,7 +27,14 @@ React + Vite + Supabase. Estética *ambient gradient* oscura con color principal
 - **Finanzas:** por mes, año o todo: facturación (contrato completo en el mes del primer pago del cliente), cash collected, gastos (únicos o mensuales recurrentes), comisiones y fijos del equipo, resultado neto, reparto a socios y lo que queda en la empresa. Cuánto le corresponde a cada miembro, pagos registrados y saldo pendiente. Las comisiones se asignan por cliente (% sobre lo cobrado). Todo en USD.
 - **Clientes y pagos:** ficha de cada cliente (programa, estado, fechas, contacto), plan de cuotas generado automáticamente, registrar pagos, deuda vencida, próximos vencimientos, y su avance en el campus y sus formularios.
 
-Los clientes, usuarios y respuestas se vinculan por email automáticamente.
+**Onboarding de clientes nuevos** — `/onboarding` (campus) y `/admin/onboarding`
+- Formulario de onboarding dentro del campus (basado en el de Limitless, adaptado a ecommerce): 14 pasos con varias preguntas cada uno, pasos ⚡ "Hacelo hoy" y pasos que aparecen según la etapa del negocio (sin tienda / tienda sin ventas / vendiendo). El avance se guarda solo en la cuenta del alumno (tabla `onboarding_responses`), se puede dejar y seguir otro día, y las respuestas quedan en su usuario.
+- En el inicio del campus el alumno ve "Completá tu formulario de onboarding" hasta que lo envía.
+- Pipeline por cliente: venta cerrada → acceso al campus → primer ingreso → formulario → kickoff. En `/admin/onboarding` se ven los pendientes, los formularios sin leer y los usuarios del campus que no tienen ficha de cliente (para vincularlos).
+- Desde la ficha del cliente: **Dar acceso al campus** (crea el usuario ya vinculado y arma el mensaje con los datos de acceso y el link al onboarding), **Vincular usuario existente**, ver las respuestas y **Marcar kickoff hecho** (también pasa el lead del CRM de «Cliente · falta onboarding» a «Cliente», y al revés: el botón del panel closer marca el kickoff en la ficha).
+- Las preguntas están en `src/onboarding/questions.ts`.
+
+Clientes y usuarios se vinculan solos por email (al crear cualquiera de los dos o al cambiar el email del cliente); si el alumno usa otro email se vincula a mano desde la ficha o desde Usuarios.
 
 ## Puesta en marcha
 

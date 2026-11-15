@@ -16,6 +16,7 @@ import {
   Logout,
   Menu,
   Phone,
+  Rocket,
   Sliders,
   Target,
   Team,
@@ -62,6 +63,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
   {
     title: 'Campus',
     items: [
+      { to: '/admin/onboarding', label: 'Onboarding', icon: Rocket },
       { to: '/admin/usuarios', label: 'Usuarios', icon: User },
       { to: '/admin/contenido', label: 'Contenido', icon: Book },
       { to: '/admin/herramientas', label: 'Herramientas', icon: Wrench },

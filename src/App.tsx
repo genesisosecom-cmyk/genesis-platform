@@ -10,6 +10,7 @@ import ProgressPage from './pages/ProgressPage';
 import ModulesPage from './pages/ModulesPage';
 import ModuleDetailPage from './pages/ModuleDetailPage';
 import ToolboxPage from './pages/ToolboxPage';
+import OnboardingPage from './pages/OnboardingPage';
 import AdminLayout from './admin/AdminLayout';
 import OverviewPage from './admin/OverviewPage';
 import UsersPage from './admin/UsersPage';
@@ -18,6 +19,8 @@ import ResponseDetailPage from './admin/ResponseDetailPage';
 import FormsPage from './admin/FormsPage';
 import ClientsPage from './admin/ClientsPage';
 import ClientDetailPage from './admin/ClientDetailPage';
+import OnboardingAdminPage from './admin/onboarding/OnboardingAdminPage';
+import OnboardingDetailPage from './admin/onboarding/OnboardingDetailPage';
 import AgendaPage from './admin/AgendaPage';
 import ContentAdminPage from './admin/ContentAdminPage';
 import ToolsAdminPage from './admin/ToolsAdminPage';
@@ -76,6 +79,7 @@ export default function App() {
             <Route path="modulos/:moduleId" element={<ModuleDetailPage />} />
             <Route path="modulos/:moduleId/:lessonId" element={<ModuleDetailPage />} />
             <Route path="herramientas" element={<ToolboxPage />} />
+            <Route path="onboarding" element={<OnboardingPage />} />
           </Route>
           <Route path="sdr" element={<RequireAuth area="sdr"><SdrPage /></RequireAuth>} />
           <Route path="sdr/:leadLaunchId" element={<RequireAuth area="sdr"><SdrPage /></RequireAuth>} />
@@ -101,6 +105,8 @@ export default function App() {
           <Route path="herramientas" element={<ToolsAdminPage />} />
           <Route path="clientes" element={<ClientsPage />} />
           <Route path="clientes/:clientId" element={<ClientDetailPage />} />
+          <Route path="onboarding" element={<OnboardingAdminPage />} />
+          <Route path="onboarding/:userId" element={<OnboardingDetailPage />} />
           <Route path="finanzas" element={<FinancePage />} />
           <Route path="leads" element={<LeadsPage />} />
           <Route path="leads/:leadLaunchId" element={<AdminLeadPage />} />
