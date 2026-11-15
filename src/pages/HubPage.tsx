@@ -3,9 +3,13 @@ import { useAuth } from '../auth/AuthContext';
 import { useProgress } from '../progress/ProgressContext';
 import { useContent } from '../content/ContentContext';
 import { ArrowRight, Chart, Layers, Vault } from '../components/Icons';
+import { useAsync } from '../lib/useAsync';
+import { fetchMyOnboarding } from '../onboarding/api';
 
 export default function HubPage() {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
+  const { data: onboarding, loading: onbLoading } = useAsync(() => (profile && !isAdmin ? fetchMyOnboarding(profile.id) : Promise.resolve(null)), [profile?.id, isAdmin]);
+  const showOnboarding = !isAdmin && !onbLoading && !onboarding?.completed_at;
   const { overallPercent } = useProgress();
   const { modules, tools } = useContent();
   const firstName = profile?.full_name.split(' ')[0] || 'de nuevo';
@@ -23,6 +27,16 @@ export default function HubPage() {
         <h1 className="page__title">Hola, {firstName}</h1>
         <p className="page__lead">¿Por dónde querés continuar hoy?</p>
       </header>
+      {showOnboarding && (
+        <Link to="/onboarding" className="glass onb-banner">
+          <div className="onb-banner__text">
+            <span className="eyebrow">Primer paso</span>
+            <span className="onb-banner__title">{onboarding ? 'Terminá tu formulario de onboarding' : 'Completá tu formulario de onboarding'}</span>
+            <span className="muted">Con esto el equipo conoce tu punto de partida y arma tu plan. Tu avance se guarda solo.</span>
+          </div>
+          <span className="btn btn--primary">{onboarding ? 'Continuar' : 'Empezar'} <ArrowRight width={16} height={16} /></span>
+        </Link>
+      )}
       <div className="hub">
         {cards.map(({ to, n, title, text, Icon }) => (
           <Link key={to} to={to} className="glass hub__card">

@@ -11,8 +11,11 @@ import { fmtDate, fmtDateTime, relativeTime } from '../lib/format';
 import type { Profile } from '../lib/types';
 import { adminUsers, type TempCredentials } from '../lib/adminUsers';
 import { useContent } from '../content/ContentContext';
+import { fetchOnboardings, onboardingState, type OnboardingRow } from '../onboarding/api';
+import { LinkClientModal } from './onboarding/AccessModals';
+import type { Client } from '../lib/types';
 
-const load = () => Promise.all([fetchProfiles(), fetchAllProgress(), fetchResponses(), fetchClients(), fetchForms()]);
+const load = () => Promise.all([fetchProfiles(), fetchAllProgress(), fetchResponses(), fetchClients(), fetchForms(), fetchOnboardings()]);
 
 export default function UsersPage() {
   const { modules } = useContent();
@@ -21,7 +24,7 @@ export default function UsersPage() {
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const [profiles = [], progress = [], responses = [], clients = [], forms = []] = data ?? [];
+  const [profiles = [], progress = [], responses = [], clients = [], forms = [], onboardings = []] = data ?? [];
   const q = query.trim().toLowerCase();
   const rows = profiles
     .filter((p) => !q || `${p.full_name} ${p.email}`.toLowerCase().includes(q))
@@ -29,7 +32,8 @@ export default function UsersPage() {
       profile: p,
       summary: summarizeProgress(progress.filter((r) => r.user_id === p.id), modules),
       responses: responses.filter((r) => r.user_id === p.id || r.respondent_email.toLowerCase() === p.email.toLowerCase()),
-      client: clients.find((c) => c.profile_id === p.id || (c.email && c.email.toLowerCase() === p.email.toLowerCase())),
+      client: clients.find((c) => c.profile_id === p.id),
+      onboarding: onboardings.find((o) => o.user_id === p.id),
     }));
   const current = rows.find((r) => r.profile.id === selected);
 
@@ -48,23 +52,28 @@ export default function UsersPage() {
                 <th>Usuario</th>
                 <th>Avance</th>
                 <th>Lecciones</th>
+                <th>Onboarding</th>
                 <th>Formularios</th>
                 <th>Última actividad</th>
                 <th>Estado</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ profile: p, summary, responses: rs, client }) => (
+              {rows.map(({ profile: p, summary, responses: rs, client, onboarding }) => (
                 <tr key={p.id} className="table__row" onClick={() => setSelected(p.id)}>
                   <td>
                     <div className="cell-main">{p.full_name || '—'} {p.role === 'superadmin' && <Pill tone="accent">Admin</Pill>}</div>
-                    <div className="cell-sub">{p.email}{client && ` · Cliente: ${client.program ?? client.full_name}`}</div>
+                    <div className="cell-sub">
+                      {p.email}
+                      {client ? ` · Cliente: ${client.program ?? client.full_name}` : p.role === 'member' && <> · <Pill tone="warn">Sin ficha de cliente</Pill></>}
+                    </div>
                   </td>
                   <td className="cell-progress">
                     <span>{summary.overallPercent}%</span>
                     <ProgressBar percent={summary.overallPercent} />
                   </td>
                   <td>{summary.completedCount}/{summary.totalLessons}</td>
+                  <td><OnboardingPill row={onboarding} /></td>
                   <td>{rs.length}</td>
                   <td>{relativeTime(p.last_seen_at)}</td>
                   <td><StatusPill profile={p} /></td>
@@ -79,6 +88,7 @@ export default function UsersPage() {
       {current && (
         <UserDetail
           row={current}
+          clients={clients}
           formTitle={(id) => forms.find((f) => f.id === id)?.title ?? '—'}
           onClose={() => setSelected(null)}
           onChanged={reload}
@@ -88,6 +98,13 @@ export default function UsersPage() {
   );
 }
 
+function OnboardingPill({ row }: { row?: OnboardingRow }) {
+  const st = onboardingState(row);
+  if (st === 'completo') return row!.reviewed ? <Pill tone="ok">Enviado</Pill> : <Pill tone="accent">Sin leer</Pill>;
+  if (st === 'en_curso') return <Pill tone="muted">En curso</Pill>;
+  return <span className="muted">—</span>;
+}
+
 function StatusPill({ profile: p }: { profile: Profile }) {
   if (!p.active) return <Pill tone="muted">Sin acceso</Pill>;
   if (p.must_change_password) return <Pill tone="accent">Clave temporal</Pill>;
@@ -95,10 +112,10 @@ function StatusPill({ profile: p }: { profile: Profile }) {
 }
 
 /** Muestra el email y la contraseña temporal con botón de copiar. */
-export function CredentialsCard({ creds, name }: { creds: TempCredentials; name?: string }) {
+export function CredentialsCard({ creds, name, onboarding = true }: { creds: TempCredentials; name?: string; /** Suma al mensaje el link al formulario de onboarding. */ onboarding?: boolean }) {
   const [copied, setCopied] = useState(false);
   const url = window.location.origin;
-  const text = `¡Hola${name ? ` ${name.split(' ')[0]}` : ''}! Ya tenés acceso a Genesis.\n\nIngresá en: ${url}\nEmail: ${creds.email}\nContraseña temporal: ${creds.password}\n\nAl ingresar te va a pedir que elijas una contraseña nueva.`;
+  const text = `¡Hola${name ? ` ${name.split(' ')[0]}` : ''}! Ya tenés acceso a Genesis.\n\nIngresá en: ${url}\nEmail: ${creds.email}\nContraseña temporal: ${creds.password}\n\nAl ingresar te va a pedir que elijas una contraseña nueva.${onboarding ? `\n\nPrimer paso: completá tu formulario de onboarding (${url}/onboarding). Hacé hoy los pasos marcados con ⚡ y el resto en los próximos 3 días; tu avance se guarda solo.` : ''}`;
 
   const copy = async () => {
     await navigator.clipboard.writeText(text);
@@ -149,7 +166,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
   if (creds) {
     return (
       <Modal title={`Usuario creado: ${fullName || creds.email}`} onClose={onClose}>
-        <CredentialsCard creds={creds} name={fullName} />
+        <CredentialsCard creds={creds} name={fullName} onboarding={role === 'member'} />
       </Modal>
     );
   }
@@ -180,12 +197,14 @@ interface Row {
   profile: Profile;
   summary: ReturnType<typeof summarizeProgress>;
   responses: Awaited<ReturnType<typeof fetchResponses>>;
-  client?: Awaited<ReturnType<typeof fetchClients>>[number];
+  client?: Client;
+  onboarding?: OnboardingRow;
 }
 
-function UserDetail({ row, formTitle, onClose, onChanged }: { row: Row; formTitle: (id: string) => string; onClose: () => void; onChanged: () => void }) {
+function UserDetail({ row, clients, formTitle, onClose, onChanged }: { row: Row; clients: Client[]; formTitle: (id: string) => string; onClose: () => void; onChanged: () => void }) {
   const { profile: me } = useAuth();
-  const { profile: p, summary, responses, client } = row;
+  const { profile: p, summary, responses, client, onboarding } = row;
+  const [linking, setLinking] = useState(false);
   const [msg, setMsg] = useState('');
   const isMe = me?.id === p.id;
 
@@ -232,8 +251,26 @@ function UserDetail({ row, formTitle, onClose, onChanged }: { row: Row; formTitl
         <span>Alta: {fmtDate(p.created_at)}</span>
         <span>Última actividad: {relativeTime(p.last_seen_at)}</span>
         <StatusPill profile={p} />
-        {client && <Link className="link" to={`/admin/clientes/${client.id}`}>Ver ficha de cliente →</Link>}
+        {client ? (
+          <Link className="link" to={`/admin/clientes/${client.id}`}>Ver ficha de cliente →</Link>
+        ) : (
+          p.role === 'member' && <button className="btn btn--primary btn--sm" onClick={() => setLinking(true)}>Vincular a un cliente</button>
+        )}
       </div>
+
+      <h3 className="section-title">Onboarding</h3>
+      {onboarding ? (
+        <div className="mini-list__item">
+          <span>
+            Formulario de onboarding <OnboardingPill row={onboarding} />
+            <span className="muted"> · actualizado {relativeTime(onboarding.updated_at)}</span>
+          </span>
+          <Link className="btn btn--ghost btn--sm" to={`/admin/onboarding/${p.id}`}>Ver respuestas</Link>
+        </div>
+      ) : (
+        <p className="muted">Todavía no empezó el formulario de onboarding.</p>
+      )}
+      {linking && <LinkClientModal profile={p} clients={clients} onClose={() => setLinking(false)} onDone={onChanged} />}
 
       <h3 className="section-title">Avance · {summary.overallPercent}%</h3>
       <div className="list">
@@ -276,7 +313,7 @@ function UserDetail({ row, formTitle, onClose, onChanged }: { row: Row; formTitl
       {creds && (
         <>
           <h3 className="section-title">Nuevos datos de acceso</h3>
-          <CredentialsCard creds={creds} name={p.full_name} />
+          <CredentialsCard creds={creds} name={p.full_name} onboarding={p.role === 'member'} />
         </>
       )}
     </Modal>

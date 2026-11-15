@@ -1538,3 +1538,70 @@ html { scrollbar-gutter: stable; }
   .lt__h2h .table td:first-child { white-space: normal; }
 }
 .lt__win { color: #0ca30c; font-weight: 500; }
+
+/* ---------- Onboarding de clientes (campus) ---------- */
+.onb { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+.onb__intro { display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; margin-top: 2vh; }
+.onb__intro .page__lead { max-width: 600px; }
+.onb__bullets { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; text-align: left; max-width: 600px; font-size: 14px; color: var(--muted); }
+.onb__bullets li { position: relative; padding-left: 18px; }
+.onb__bullets li::before { content: ''; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.onb__bullets strong { color: var(--text); font-weight: 500; }
+.onb__bolt { color: var(--accent); }
+.onb__card { overflow: hidden; scroll-margin-top: 90px; }
+.onb__progress { padding: 18px 24px 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.onb__progress-head { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; flex-wrap: wrap; }
+.onb__step-n { color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500; }
+.onb__bar { height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.onb__bar span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width 0.5s var(--ease); }
+.onb__body { padding: 24px; display: flex; flex-direction: column; gap: 22px; }
+.onb__title { font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.onb__subtitle { margin-top: -14px; font-size: 14px; }
+.onb__today { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 999px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); }
+.onb__q { display: flex; flex-direction: column; gap: 8px; }
+.onb__label { font-size: 14px; font-weight: 500; }
+.onb__hint { font-size: 12px; color: var(--muted); margin: 0; }
+.onb__select { appearance: none; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 15px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 40px; }
+.onb__select option { background: #140f0b; color: var(--text); }
+.onb .chip:disabled { opacity: 0.35; cursor: default; }
+.onb__scale .scale__opt { flex: 1 1 0; min-width: 38px; }
+.onb__scale-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.onb__nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 6px; }
+.onb__people { display: flex; flex-direction: column; gap: 12px; }
+.onb__person { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--accent-line); border-radius: 12px; background: var(--accent-soft); }
+.onb__person-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.onb__person-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.onb__add { align-self: stretch; justify-content: center; border-style: dashed; color: var(--accent); }
+.onb__done { padding: 36px 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+.onb__done .muted { max-width: 420px; }
+.onb__check { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); }
+.onb__done-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+@media (max-width: 720px) {
+  .onb__body { padding: 18px 16px; }
+  .onb__progress { padding: 16px; }
+  .onb__person-grid { grid-template-columns: 1fr; }
+}
+
+/* Aviso de onboarding pendiente en el inicio del campus */
+.onb-banner { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 24px; margin-bottom: 24px; border-color: var(--accent-line); }
+.onb-banner__text { display: flex; flex-direction: column; gap: 4px; }
+.onb-banner__title { font-size: 17px; font-weight: 500; }
+@media (max-width: 720px) { .onb-banner { flex-direction: column; align-items: stretch; } }
+
+/* Respuestas de onboarding en el panel */
+.onb-answers { display: flex; flex-direction: column; gap: 22px; }
+.onb-answers__step { display: flex; flex-direction: column; gap: 12px; }
+.onb-answers__title { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+.onb-answers__item { display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.onb-answers__q { font-size: 12px; color: var(--muted); }
+.onb-answers__a { white-space: pre-wrap; font-size: 14px; word-break: break-word; }
+.onb-answers__a--empty { color: var(--muted); font-style: italic; }
+.checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.checklist__item { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.checklist__dot { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; border: 1px solid var(--line); color: var(--muted); }
+.checklist__item.is-done .checklist__dot { color: #140802; background: var(--accent); border-color: var(--accent); }
+.checklist__body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.checklist__sub { font-size: 12px; color: var(--muted); }
+.onb-steps { display: inline-flex; gap: 3px; vertical-align: middle; }
+.onb-steps span { width: 8px; height: 8px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
+.onb-steps span.is-on { background: var(--accent); }
