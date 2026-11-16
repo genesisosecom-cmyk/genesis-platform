@@ -112,6 +112,9 @@ export interface Client {
   profile_id: string | null;
   /** Kickoff / onboarding hecho (null = falta). */
   onboarded_at: string | null;
+  /** Closer que cerró la venta y SDR que la agendó (null = ninguno). */
+  closer_id: string | null;
+  sdr_id: string | null;
   created_at: string;
 }
 
@@ -158,6 +161,8 @@ export interface SalesRep {
   sdr_weight: number;
   /** Qué leads recibe en el reparto automático. */
   sdr_segment: SdrSegment;
+  /** false = sus ventas no le suman comisión. */
+  cobra_comision: boolean;
   created_at: string;
 }
 

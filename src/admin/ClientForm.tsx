@@ -1,9 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { addMonthsISO, fmtMoney, todayISO } from '../lib/format';
-import type { Client, ClientStatus } from '../lib/types';
+import type { Client, ClientStatus, SalesRep } from '../lib/types';
+import { fetchSalesReps } from '../crm/api';
+import { useAsync } from '../lib/useAsync';
 import { Field, Modal } from './ui';
 import { PROGRAMS } from '../data/schedule';
+
+/** Duración de cada programa en meses: con esto se completa la fecha de fin sola. */
+const PROGRAM_MONTHS: Record<string, number> = { 'genesis lite': 3, 'genesis os': 4 };
+const programMonths = (program: string) => PROGRAM_MONTHS[program.trim().toLowerCase()] ?? null;
 
 export const STATUS_LABELS: Record<ClientStatus, string> = {
   activo: 'Activo',
@@ -41,7 +47,16 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
     installments_count: client ? String(client.installments_count) : '1',
     discord_channel: client?.discord_channel ?? '',
     notes: client?.notes ?? '',
+    closer_id: client?.closer_id ?? '',
+    sdr_id: client?.sdr_id ?? '',
   });
+  const reps = useAsync(fetchSalesReps, []);
+  // Activos con ese rol, más el que ya tenía asignado aunque esté de baja.
+  const repsFor = (role: 'closer_status' | 'sdr_status', current: string) =>
+    (reps.data ?? []).filter((r: SalesRep) => (r[role] && r[role] !== 'baja') || r.id === current);
+  const closers = repsFor('closer_status', v.closer_id);
+  const sdrs = repsFor('sdr_status', v.sdr_id);
+  const closerSinComision = closers.find((r) => r.id === v.closer_id)?.cobra_comision === false;
   const [generate, setGenerate] = useState(!client);
   const [firstDue, setFirstDue] = useState(todayISO());
   // Plan de cuotas editable: se reparte en partes iguales hasta que el admin toca un monto o fecha.
@@ -50,6 +65,14 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((s) => ({ ...s, [k]: e.target.value }));
+  // Al elegir el programa o cambiar el inicio, el fin se calcula solo (Lite: 3 meses, OS: 4). Se puede cambiar a mano.
+  const setAndEnd = (k: 'program' | 'start_date') => (e: { target: { value: string } }) =>
+    setV((s) => {
+      const next = { ...s, [k]: e.target.value };
+      const months = programMonths(next.program);
+      return months && next.start_date ? { ...next, end_date: addMonthsISO(next.start_date, months) } : next;
+    });
+  const autoMonths = programMonths(v.program);
 
   const total = Number(v.total_amount || 0);
   const count = Math.max(1, Math.min(60, Number(v.installments_count || 1)));
@@ -100,6 +123,8 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
       end_date: v.end_date || null,
       notes: v.notes || null,
       discord_channel: v.discord_channel.trim() || null,
+      closer_id: v.closer_id || null,
+      sdr_id: v.sdr_id || null,
       total_amount: total,
       installments_count: count,
       currency: v.currency.toUpperCase(),
@@ -147,16 +172,28 @@ export default function ClientFormModal({ client, onClose, onSaved }: { client: 
         <Field label="Empresa"><input className="field" value={v.company} onChange={set('company')} /></Field>
         <Field label="Canal de Discord"><input className="field" value={v.discord_channel} onChange={set('discord_channel')} placeholder="#nombre-del-canal" /></Field>
         <Field label="Programa">
-          <input className="field" list="programs" value={v.program} onChange={set('program')} placeholder="Genesis OG, Genesis Lite, Genesis OS…" />
+          <input className="field" list="programs" value={v.program} onChange={setAndEnd('program')} placeholder="Genesis OG, Genesis Lite, Genesis OS…" />
           <datalist id="programs">{PROGRAMS.map((p) => <option key={p} value={p} />)}</datalist>
+        </Field>
+        <Field label={closerSinComision ? 'Closer (no suma comisión)' : 'Closer'}>
+          <select className="field field--select" value={v.closer_id} onChange={set('closer_id')}>
+            <option value="">Sin asignar</option>
+            {closers.map((r) => <option key={r.id} value={r.id}>{r.name}{r.cobra_comision ? '' : ' · sin comisión'}</option>)}
+          </select>
+        </Field>
+        <Field label="SDR">
+          <select className="field field--select" value={v.sdr_id} onChange={set('sdr_id')}>
+            <option value="">Ninguno</option>
+            {sdrs.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
         </Field>
         <Field label="Estado">
           <select className="field field--select" value={v.status} onChange={set('status')}>
             {Object.entries(STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         </Field>
-        <Field label="Inicio"><input className="field" type="date" value={v.start_date} onChange={set('start_date')} /></Field>
-        <Field label="Fin"><input className="field" type="date" value={v.end_date} onChange={set('end_date')} /></Field>
+        <Field label="Inicio"><input className="field" type="date" value={v.start_date} onChange={setAndEnd('start_date')} /></Field>
+        <Field label={autoMonths ? `Fin (${autoMonths} meses desde el inicio)` : 'Fin'}><input className="field" type="date" value={v.end_date} onChange={set('end_date')} /></Field>
         <Field label="Monto total"><input className="field" type="number" min="0" step="0.01" value={v.total_amount} onChange={set('total_amount')} /></Field>
         <Field label="Moneda"><input className="field" value={v.currency} onChange={set('currency')} maxLength={3} /></Field>
         <Field label="Cantidad de cuotas"><input className="field" type="number" min="1" value={v.installments_count} onChange={set('installments_count')} /></Field>
