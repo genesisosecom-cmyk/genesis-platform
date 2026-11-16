@@ -21,7 +21,9 @@ import { fetchOnboarding, type OnboardingRow } from '../onboarding/api';
 const escape = (v: string) => v.replace(/[\\%_]/g, '\\$&');
 
 async function load(id: string) {
-  const client = unwrap(await supabase.from('clients').select('*').eq('id', id).single()) as Client;
+  const client = unwrap(await supabase.from('clients')
+    .select('*, closer:sales_reps!clients_closer_id_fkey(name), sdr:sales_reps!clients_sdr_id_fkey(name)')
+    .eq('id', id).single()) as Client & { closer: { name: string } | null; sdr: { name: string } | null };
   const [payments, forms, profiles, linked] = await Promise.all([
     fetchPayments(id),
     fetchForms(),
@@ -100,6 +102,7 @@ export default function ClientDetailPage() {
                     {c.discord_channel && <span className="discord">Discord: {c.discord_channel}</span>}
                     {c.company && <span>{c.company}</span>}
                     <span>{fmtDate(c.start_date)} → {fmtDate(c.end_date)}</span>
+                    <span>Closer: {c.closer?.name ?? '—'} · SDR: {c.sdr?.name ?? 'ninguno'}</span>
                   </div>
                 </div>
                 <div className="aform__actions">
