@@ -37,8 +37,10 @@ create index launches_funnel_idx on public.launches (funnel_id);
 drop index public.launches_one_current_idx;
 create unique index launches_current_per_funnel on public.launches (funnel_id) where is_current;
 
-insert into public.launches (id, name, funnel_id, is_current) values
-  ('evergreen-2026-q4', 'Evergreen orgánico · Q4 2026', 'evergreen-organico', true);
+-- starts_at = inicio del trimestre. Además de ordenar los ciclos, evita que una pantalla que
+-- todavía elija «el primer ciclo actual» (ordenados por fecha) tome este en vez del webinar.
+insert into public.launches (id, name, funnel_id, is_current, starts_at) values
+  ('evergreen-2026-q4', 'Evergreen orgánico · Q4 2026', 'evergreen-organico', true, '2026-10-01 00:00:00-03');
 
 -- ---------- Ciclo actual de un funnel ----------
 -- Sin argumento sigue devolviendo el del funnel `webinar`: es lo que usan la landing
