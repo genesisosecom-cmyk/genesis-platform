@@ -1,6 +1,6 @@
 import { supabase, unwrap } from '../lib/supabase';
 import { safeName } from '../content/files';
-import type { Cadence, Commission, CrmAgent, CrmResource, CrmSettings, Launch, LaunchProgress, Lead, LeadEvent, LeadLaunch, Payment, PostClassStatus, SalesCall, SalesRep } from '../lib/types';
+import type { Cadence, Commission, CrmAgent, CrmResource, CrmSettings, Launch, LaunchProgress, Lead, LeadEvent, LeadLaunch, Payment, PostClassStatus, SalesCall, SalesRep, SalesReport } from '../lib/types';
 
 export type LeadRow = LeadLaunch & { lead: Lead };
 export type CallRow = SalesCall & { lead_launch: LeadRow };
@@ -117,9 +117,14 @@ export interface Installment {
   due_date: string;
 }
 
+/** Campos del reporte por fases que se cargan desde el panel. */
+export type ReportInput = Partial<Pick<SalesReport, 'first_touch' | 'last_touch' | 'entry_quote' | 'pain' | 'pain_quote' | 'beliefs' | 'buy_reason' | 'no_close_reason' | 'objections' | 'lane' | 'goes_to'>>;
+
 export interface CallResultInput {
   result: 'no_cerro' | 'cerro' | 'seguimiento';
   note: string;
+  /** Reporte por fases: sin reporte la base no deja cerrar la llamada. */
+  report?: ReportInput | null;
   program?: string;
   amountTotal?: number;
   currency?: string;
@@ -139,6 +144,28 @@ export const recordCallResult = (callId: string, r: CallResultInput) =>
     p_payments: r.payments ?? [],
     p_installments: r.installments ?? [],
     p_followup_at: r.followupAt ?? null,
+    p_report: r.report ?? null,
+  });
+
+// ---------- Reporte de ventas por fases (SOP 04) ----------
+
+export type ReportRow = SalesReport & { lead_launch: LeadRow; sales_call: SalesCall | null };
+
+/** Guarda (o completa) el reporte del lead; con `callId`, el de esa llamada. */
+export const saveReport = (leadLaunchId: string, callId: string | null, report: ReportInput) =>
+  rpc<string>('crm_save_report', { p_lead_launch: leadLaunchId, p_call: callId, p: report });
+
+export const fetchReportOf = async (leadLaunchId: string, callId: string | null) => {
+  const rows = unwrap(await supabase.from('sales_reports').select('*').eq('lead_launch_id', leadLaunchId).order('created_at', { ascending: false })) as SalesReport[];
+  return rows.find((r) => r.sales_call_id === callId) ?? rows.find((r) => !r.sales_call_id) ?? null;
+};
+
+/** Reportes con su lead y su llamada; con `launchIds`, solo los de esos ciclos. */
+export const fetchReports = (launchIds?: string[]) =>
+  fetchAll<ReportRow>((from, to) => {
+    let q = supabase.from('sales_reports').select('*, lead_launch:lead_launches!inner(*, lead:leads(*)), sales_call:sales_calls(*)');
+    if (launchIds) q = q.in('lead_launch.launch_id', launchIds);
+    return q.order('created_at', { ascending: false }).range(from, to) as unknown as Page<ReportRow>;
   });
 
 export const markAttendance = (callId: string, attendance: 'se_presento' | 'no_show' | 'cancelo') =>
@@ -156,7 +183,9 @@ export const fetchSalePayments = async (callIds: string[]) =>
 
 // ---------- SDR: trabajo del lead ----------
 
-export type LeadPatch = Partial<Pick<LeadLaunch, 'answered' | 'real_conversation' | 'sdr_qualified' | 'readiness' | 'agendo' | 'followup_cadence' | 'sdr_notes' | 'asked_agents'>>;
+export type LeadPatch = Partial<Pick<LeadLaunch, 'answered' | 'real_conversation' | 'sdr_qualified' | 'readiness' | 'agendo' | 'followup_cadence' | 'sdr_notes' | 'asked_agents'
+  // Ficha del evergreen
+  | 'stage' | 'subavatar' | 'entry_keyword' | 'entry_content_id' | 'entry_channel' | 'pain' | 'quote' | 'sells_today' | 'sells_what' | 'repurchase_cycle' | 'capital' | 'wanted_when' | 'lane'>>;
 
 export const claimLead = (id: string) => rpc('crm_claim', { p_ll: id });
 export const releaseLead = (id: string) => rpc('crm_release', { p_ll: id });
@@ -184,6 +213,9 @@ export interface NewLeadInput {
   assignMe: boolean;
   closerId: string | null;
   callAt: string | null;
+  /** Funnel al que entra (por defecto, el webinar). */
+  funnelId?: string | null;
+  instagram?: string;
 }
 export const createLead = (v: NewLeadInput) =>
   rpc<string>('crm_create_lead', {
@@ -195,11 +227,29 @@ export const createLead = (v: NewLeadInput) =>
     p_assign_me: v.assignMe,
     p_closer: v.closerId,
     p_call_at: v.callAt,
+    p_funnel: v.funnelId ?? null,
+    p_instagram: v.instagram ?? null,
   });
+
+/** Alguien escribió una palabra clave (CUENTA, PISO…): crea o encuentra el lead y lo suma al ciclo del evergreen. */
+export interface KeywordInput {
+  nombre: string;
+  instagram?: string;
+  telefono?: string;
+  email?: string;
+  keyword: string;
+  canal?: string;
+  content_url?: string;
+  launch_id?: string;
+}
+export const registerKeyword = (v: KeywordInput) =>
+  rpc<{ ok: boolean; id: string; lead_launch_id: string; repetido: boolean }>('crm_register_keyword', { p: v });
 
 // ---------- Métricas, agentes, recursos ----------
 
-export const fetchLaunchProgress = (launchId: string) => rpc<LaunchProgress | null>('crm_launch_progress', { p_launch: launchId });
+/** Caja y ventas de un ciclo; sin ciclo, de todo un funnel (o de todos, sin funnel). */
+export const fetchLaunchProgress = (launchId: string | null, funnelId?: string | null) =>
+  rpc<LaunchProgress | null>('crm_launch_progress', { p_launch: launchId, p_funnel: funnelId ?? null });
 
 export const fetchCommissions = (from?: string | null, to?: string | null) =>
   rpc<Commission[]>('crm_commissions', { p_from: from ?? null, p_to: to ?? null });
@@ -262,6 +312,7 @@ export async function openReceipt(path: string) {
 // ---------- Helpers ----------
 
 export const waLink = (phone: string | null) => (phone ? `https://wa.me/${phone}` : null);
+export const igLink = (user: string | null) => (user ? `https://instagram.com/${user}` : null);
 
 /**
  * Prioridad del panel SDR: primero los que aplicaron y califican, después los que aplicaron,

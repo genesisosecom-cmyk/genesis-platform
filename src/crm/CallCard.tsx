@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAsync } from '../lib/useAsync';
+import { ReportEditor, ReportFields, reportDraft, reportMissing, ReportView } from './ReportForm';
 import { Field, Pill } from '../admin/ui';
 import { fmtDate, fmtDateTime, fmtMoney, todayISO, addMonthsISO } from '../lib/format';
 import { MAX_FILE_MB, tooBig } from '../content/files';
 import type { Payment, SalesRep } from '../lib/types';
 import {
   addSalePayment,
+  fetchReportOf,
   isoToLocal,
   localToIso,
   markAttendance,
@@ -16,6 +19,7 @@ import {
   uploadReceipt,
   type CallRow,
   type Installment,
+  type ReportInput,
 } from './api';
 import { callState } from './model';
 import { CallPill } from './widgets';
@@ -68,7 +72,11 @@ export default function CallCard({
   const st = callState(call);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<null | 'reagendar' | 'cerro' | 'seguimiento' | 'no_cerro' | 'pago' | 'cuotas'>(null);
+  const [mode, setMode] = useState<null | 'reagendar' | 'cerro' | 'seguimiento' | 'no_cerro' | 'pago' | 'cuotas' | 'reporte'>(null);
+  // Reporte por fases (SOP 04): lo que ya cargó el setter se completa acá; sin reporte la llamada no se cierra.
+  const saved = useAsync(() => fetchReportOf(r.id, call.id), [r.id, call.id, call.updated_at]);
+  const [report, setReport] = useState<ReportInput>(() => reportDraft(null));
+  useEffect(() => { if (saved.data !== undefined) setReport(reportDraft(saved.data)); }, [saved.data]);
   const [at, setAt] = useState(isoToLocal(call.scheduled_at));
   const [note, setNote] = useState('');
   const [fuAt, setFuAt] = useState('');
@@ -109,9 +117,14 @@ export default function CallCard({
     }
   };
 
+  // El carril sale del programa que se vendió (Lite es solo interno).
+  const saleReport = (): ReportInput => ({ ...report, lane: report.lane ?? (/lite/i.test(program) ? 'lite' : 'os') });
+
   const saveSale = () =>
     run(async () => {
       if (!(Number(total) > 0)) throw new Error('Cargá el monto de la venta.');
+      const missing = reportMissing(saleReport(), 'cerro');
+      if (missing) throw new Error(missing);
       for (const p of pays) if (p.file && tooBig(p.file)) throw new Error(`Un comprobante supera los ${MAX_FILE_MB} MB.`);
       const uploaded = await Promise.all(
         pays.filter((p) => Number(p.amount) > 0).map(async (p) => ({
@@ -129,6 +142,7 @@ export default function CallCard({
         currency,
         payments: uploaded,
         installments: shownQuotas.filter((q) => Number(q.amount) > 0).map((q) => ({ amount: Number(q.amount), due_date: q.due_date })),
+        report: saleReport(),
       });
     });
 
@@ -217,17 +231,23 @@ export default function CallCard({
         <div className="aform">
           <Field label={<WithTip tip={T.followupAt}>Próximo contacto</WithTip>}><input className="field" type="datetime-local" value={fuAt} onChange={(e) => setFuAt(e.target.value)} /></Field>
           <Field label="Nota"><input className="field" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Qué quedó pendiente" /></Field>
+          <ReportFields value={report} onChange={setReport} outcome="seguimiento" />
           <div className="aform__actions afield--full">
-            <button className="btn btn--primary" disabled={busy || !fuAt} onClick={() => run(() => recordCallResult(call.id, { result: 'seguimiento', note, followupAt: localToIso(fuAt) }))}>Guardar seguimiento</button>
+            <button className="btn btn--primary" disabled={busy || !fuAt} onClick={() => run(() => recordCallResult(call.id, { result: 'seguimiento', note, followupAt: localToIso(fuAt), report }))}>Guardar seguimiento</button>
           </div>
         </div>
       )}
 
       {mode === 'no_cerro' && (
         <div className="aform">
-          <Field label={<WithTip tip={T.noCloseNote}>Por qué no cerró</WithTip>} full><textarea className="field field--area" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+          <Field label={<WithTip tip={T.noCloseNote}>Nota interna</WithTip>} full><textarea className="field field--area" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+          <ReportFields value={report} onChange={setReport} outcome="no_cerro" />
           <div className="aform__actions afield--full">
-            <button className="btn btn--primary" disabled={busy} onClick={() => run(() => recordCallResult(call.id, { result: 'no_cerro', note }))}>Guardar</button>
+            <button className="btn btn--primary" disabled={busy} onClick={() => run(async () => {
+              const missing = reportMissing(report, 'no_cerro');
+              if (missing) throw new Error(missing);
+              await recordCallResult(call.id, { result: 'no_cerro', note: note || report.no_close_reason || '', report });
+            })}>Guardar</button>
           </div>
         </div>
       )}
@@ -263,6 +283,7 @@ export default function CallCard({
             ))}
           </div>
           <Field label={<WithTip tip={T.saleNote}>Nota</WithTip>} full><input className="field" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Acuerdos, plan de pagos…" /></Field>
+          <ReportFields value={saleReport()} onChange={setReport} outcome="cerro" />
           <p className="muted afield--full">Se crea el cliente en Clientes y pagos (o se usa el que ya existe con el mismo mail o teléfono) con los pagos y las cuotas.</p>
           <div className="aform__actions afield--full">
             <button className="btn btn--primary" disabled={busy} onClick={saveSale}>{busy ? 'Guardando…' : 'Guardar venta'}</button>
@@ -324,6 +345,18 @@ export default function CallCard({
       )}
 
       {st === 'no_cerro' && <p className="muted">No cerró{call.result_note ? `: ${call.result_note}` : ''}.</p>}
+
+      {(st === 'cerro' || st === 'no_cerro' || st === 'seguimiento') && mode !== 'cerro' && mode !== 'no_cerro' && mode !== 'seguimiento' && (
+        <section className="callcard__report">
+          <div className="toolbar" style={{ marginBottom: 8 }}>
+            <span className="afield__label">Reporte por fases{saved.data ? ` · ${saved.data.author_name}` : ''}</span>
+            {canEdit && <button className="link link--btn" onClick={() => setMode(mode === 'reporte' ? null : 'reporte')}>{mode === 'reporte' ? 'Cerrar' : saved.data ? 'Editar reporte' : 'Cargar reporte'}</button>}
+          </div>
+          {mode === 'reporte'
+            ? <ReportEditor leadLaunchId={r.id} callId={call.id} report={saved.data ?? null} onSaved={() => { saved.reload(); onChanged(); }} />
+            : saved.data ? <ReportView report={saved.data} /> : <p className="muted">Esta llamada todavía no tiene reporte.</p>}
+        </section>
+      )}
       {error && <p className="state--error">{error}</p>}
     </div>
   );

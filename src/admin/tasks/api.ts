@@ -16,6 +16,11 @@ export interface Task {
   id: string;
   title: string;
   phase: string;
+  /** Funnel de la tarea (el de su fase) y ciclo dentro de ese funnel. */
+  funnel_id: string;
+  launch_id: string | null;
+  /** Repetición: 'semanal:mar', 'semanal:sab'… Al cerrarla se crea la de la semana siguiente. */
+  recurrence: string | null;
   quantity: number;
   status: TaskStatus;
   responsible_id: string | null;
@@ -41,6 +46,7 @@ export interface TaskPerson {
 
 export interface TaskPhase {
   name: string;
+  funnel_id: string;
   prefix: string;
   offset_days: number | null;
   sort: number;
@@ -89,7 +95,16 @@ async function rpc<T = void>(fn: string, args: Record<string, unknown>) {
   return unwrap(await supabase.rpc(fn, args)) as T;
 }
 
-export const createTask = (fields: Partial<TaskFields>) => rpc<string>('task_create', { p: fields });
+/** El funnel sale de la fase; `funnel_id` solo confirma que la fase es del funnel elegido en el panel. */
+export const createTask = (fields: Partial<TaskFields> & { funnel_id?: string }) => rpc<string>('task_create', { p: fields });
+
+export const WEEKDAYS: [string, string][] = [['lun', 'lunes'], ['mar', 'martes'], ['mie', 'miércoles'], ['jue', 'jueves'], ['vie', 'viernes'], ['sab', 'sábados'], ['dom', 'domingos']];
+/** 'semanal:mar' → 'todos los martes'. */
+export const recurrenceLabel = (r: string | null) => {
+  const day = WEEKDAYS.find(([k]) => r === `semanal:${k}`);
+  return day ? `todos los ${day[1]}` : null;
+};
+export const setRecurrence = (id: string, recurrence: string | null) => rpc('task_set_recurrence', { p_id: id, p_recurrence: recurrence });
 
 /**
  * Guarda solo los campos cambiados. `expected` es el valor que tenía cada uno al abrir la ficha:

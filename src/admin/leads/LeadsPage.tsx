@@ -2,28 +2,30 @@ import { useLiveReload } from '../../lib/realtime';
 import { useState, type ReactNode } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import { Kpi, State } from '../ui';
-import { distributeLeads, fetchLaunches, fetchLeadRows, fetchSalesReps, POST_CLASS_STATUSES, type LeadRow } from '../../crm/api';
+import { distributeLeads, fetchLeadRows, fetchSalesReps, POST_CLASS_STATUSES, type LeadRow } from '../../crm/api';
 import LeadTable, { searchText } from '../../crm/LeadTable';
+import EvergreenLeads from '../../crm/EvergreenLeads';
+import { useFunnels } from '../../funnels/FunnelContext';
 
+/**
+ * Ciclo en uso. Lo define el selector de funnel de arriba (funnel + ciclo), así que las páginas
+ * ya no muestran su propio selector: `picker` queda vacío.
+ */
 export function useLaunchPicker() {
-  const launches = useAsync(fetchLaunches, []);
-  const [picked, setPicked] = useState<string | null>(null);
-  const launchId = picked ?? launches.data?.find((l) => l.is_current)?.id ?? launches.data?.[0]?.id ?? null;
-  const picker = launchId && (
-    <select className="field field--select" value={launchId} onChange={(e) => setPicked(e.target.value)}>
-      {launches.data!.map((l) => (
-        <option key={l.id} value={l.id}>{l.name}{l.is_current ? ' (actual)' : ''}</option>
-      ))}
-    </select>
-  );
-  return { launches, launchId, picker };
+  const { loading, error, launches, launch } = useFunnels();
+  return { launches: { loading, error, data: launches }, launchId: launch?.id ?? null, picker: null as ReactNode };
 }
 
 export default function LeadsPage() {
   const { launches, launchId, picker } = useLaunchPicker();
+  const { funnelOf } = useFunnels();
+  const funnel = funnelOf(launchId);
   return (
     <State loading={launches.loading} error={launches.error} empty={!launchId}>
-      {launchId && <LaunchLeads key={launchId} launchId={launchId} picker={picker} />}
+      {/* Columnas, etapas y ficha según el funnel: el evergreen tiene las suyas. */}
+      {launchId && (funnel?.kind === 'evergreen'
+        ? <EvergreenLeads key={launchId} launchId={launchId} funnel={funnel} linkTo={(r) => `/admin/leads/${r.id}`} />
+        : <LaunchLeads key={launchId} launchId={launchId} picker={picker} />)}
     </State>
   );
 }

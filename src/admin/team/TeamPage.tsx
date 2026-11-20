@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAsync } from '../../lib/useAsync';
 import { fetchProfiles } from '../api';
 import { Field, Modal, Pill, State } from '../ui';
+import { useFunnels } from '../../funnels/FunnelContext';
 import { distributeLeads, fetchLaunches, fetchLeadCountBySdr, fetchSalesReps, fetchSettings, saveDefaultWhatsapp, saveRep, type RepInput } from '../../crm/api';
 import type { Profile, RepStatus, SalesRep, SdrSegment } from '../../lib/types';
 
@@ -23,7 +24,9 @@ export default function TeamPage() {
   const [editing, setEditing] = useState<SalesRep | 'new' | null>(null);
   const [reps = [], profiles = [], counts = {}, settings, launches = []] = data ?? [];
   const email = (id: string | null) => profiles.find((p) => p.id === id)?.email;
-  const currentLaunch = launches.find((l) => l.is_current)?.id ?? launches[0]?.id ?? null;
+  // Ciclo del selector de funnel (con «Todos», el actual del webinar): antes era «el único actual».
+  const { launch } = useFunnels();
+  const currentLaunch = launch?.id ?? launches.find((l) => l.is_current)?.id ?? launches[0]?.id ?? null;
   const visible = [...reps].sort(
     (a, b) => Number(isGone(a)) - Number(isGone(b)) || a.name.localeCompare(b.name),
   );

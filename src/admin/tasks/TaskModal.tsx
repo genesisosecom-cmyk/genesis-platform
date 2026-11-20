@@ -8,7 +8,10 @@ import {
   deleteTask,
   EDITABLE,
   fetchTaskDetail,
+  recurrenceLabel,
+  setRecurrence,
   STATUSES,
+  WEEKDAYS,
   STATUS_CLASS,
   updateTask,
   type Conflict,
@@ -39,13 +42,20 @@ export default function TaskModal({
   task,
   people,
   phases,
+  funnelId,
+  funnelName,
   defaults,
   onClose,
   onChanged,
 }: {
   task: Task | null;
   people: TaskPerson[];
+  /** Fases que se pueden elegir (las del funnel). */
   phases: TaskPhase[];
+  /** Funnel elegido en el panel: la tarea nueva se crea ahí. */
+  funnelId?: string;
+  /** Con más de un funnel, muestra a cuál pertenece cada fase. */
+  funnelName?: (id: string) => string;
   defaults?: Partial<TaskFields>;
   onClose: () => void;
   onChanged: () => void;
@@ -63,6 +73,22 @@ export default function TaskModal({
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [saved, setSaved] = useState(false);
+  const [repeat, setRepeat] = useState(task?.recurrence ?? '');
+  useEffect(() => setRepeat(task?.recurrence ?? ''), [task?.recurrence]);
+
+  /** La repetición se guarda al toque (no pasa por el control de conflictos de los demás campos). */
+  const changeRepeat = async (value: string) => {
+    setRepeat(value);
+    if (!task) return;
+    setError(null);
+    try {
+      await setRecurrence(task.id, value || null);
+      onChanged();
+    } catch (err) {
+      setError((err as Error).message);
+      setRepeat(task.recurrence ?? '');
+    }
+  };
 
   const dirty = EDITABLE.filter((k) => draft[k] !== base[k]);
 
@@ -91,7 +117,9 @@ export default function TaskModal({
       if (creating) {
         const fields: Partial<TaskFields> = { ...draft };
         if (!dueTouched) delete fields.due_date; // sin fecha elegida: la calcula la base según la fase
-        await createTask(fields);
+        const phaseFunnel = phases.find((p) => p.name === draft.phase)?.funnel_id;
+        const id = await createTask({ ...fields, funnel_id: funnelId ?? phaseFunnel });
+        if (repeat) await setRecurrence(id, repeat);
         onChanged();
         onClose();
         return;
@@ -150,7 +178,7 @@ export default function TaskModal({
         </Field>
         <Field label="Fase">
           <select className="field field--select" value={draft.phase} onChange={(e) => set('phase', e.target.value)}>
-            {phases.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+            {phases.map((p) => <option key={p.name} value={p.name}>{funnelName && !funnelId && creating ? `${funnelName(p.funnel_id)} · ${p.name}` : p.name}</option>)}
           </select>
         </Field>
         <Field label="Estado">
@@ -170,6 +198,13 @@ export default function TaskModal({
         <Field label="Cantidad">
           <input className="field" type="number" min={1} max={999} value={draft.quantity} onChange={(e) => set('quantity', Math.max(1, Math.min(999, Number(e.target.value) || 1)))} />
         </Field>
+        <Field label="Se repite">
+          <select className="field field--select" value={repeat} onChange={(e) => changeRepeat(e.target.value)}>
+            <option value="">No se repite</option>
+            {WEEKDAYS.map(([k]) => <option key={k} value={`semanal:${k}`}>{recurrenceLabel(`semanal:${k}`)}</option>)}
+          </select>
+        </Field>
+        {repeat && <p className="muted afield--full" style={{ margin: 0 }}>Al pasarla a «Hecha» se crea sola la de la semana siguiente.</p>}
         <Field label="Agente (del repo)" full>
           <input className="field" maxLength={300} value={draft.agent} onChange={(e) => set('agent', e.target.value)} />
         </Field>

@@ -6,6 +6,7 @@ import { summarizeProgress } from '../progress/ProgressContext';
 import { useContent } from '../content/ContentContext';
 import { Kpi, Pill, State } from './ui';
 import { fmtDate, fmtDateTime, fmtMoney, todayISO } from '../lib/format';
+import FunnelOverviewSection from './funnel/FunnelOverviewSection';
 
 const loadOverview = () =>
   Promise.all([fetchProfiles(), fetchAllProgress(), fetchResponses(), fetchForms(), fetchClients(), fetchPayments()]);
@@ -15,9 +16,13 @@ export default function OverviewPage() {
   useLiveReload(['form_responses', 'payments', 'clients'], reload, { delayMs: 2000 });
 
   return (
-    <State loading={loading} error={error}>
-      {data && <Overview data={data} />}
-    </State>
+    <>
+      {/* Ventas por funnel: con «Todos», el consolidado y una tarjeta por funnel; con un funnel, sus KPIs. */}
+      <FunnelOverviewSection />
+      <State loading={loading} error={error}>
+        {data && <Overview data={data} />}
+      </State>
+    </>
   );
 }
 

@@ -6,6 +6,7 @@ import { Field, Modal, Pill, State } from '../ui';
 import { fetchAgents, fetchLaunches, fetchResources, fetchSettings } from '../../crm/api';
 import type { CrmAgent, CrmResource, CrmSettings, Launch } from '../../lib/types';
 import LandingTestsEditor from './LandingTestsEditor';
+import { useFunnels } from '../../funnels/FunnelContext';
 
 const load = () => Promise.all([fetchSettings(), fetchLaunches(), fetchAgents(), fetchResources()]);
 
@@ -77,32 +78,37 @@ function Distribution({ settings, onSaved }: { settings: CrmSettings; onSaved: (
 
 function Launches({ launches, onSaved }: { launches: Launch[]; onSaved: () => void }) {
   const [editing, setEditing] = useState<Launch | 'new' | null>(null);
-  const { busy, error, run } = useSaver(onSaved);
-  const makeCurrent = (id: string) =>
+  const { funnels, funnelId, reload: reloadFunnels } = useFunnels();
+  const { busy, error, run } = useSaver(() => { onSaved(); reloadFunnels(); });
+  const funnelName = (id: string) => funnels.find((f) => f.id === id)?.name ?? id;
+  const shown = funnelId === 'all' ? launches : launches.filter((l) => l.funnel_id === funnelId);
+  // «Actual» es por funnel: solo se le saca la marca al actual de ese mismo funnel.
+  const makeCurrent = (l: Launch) =>
     run(async () => {
-      unwrap(await supabase.from('launches').update({ is_current: false }).eq('is_current', true));
-      unwrap(await supabase.from('launches').update({ is_current: true }).eq('id', id));
+      unwrap(await supabase.from('launches').update({ is_current: false }).eq('is_current', true).eq('funnel_id', l.funnel_id));
+      unwrap(await supabase.from('launches').update({ is_current: true }).eq('id', l.id));
     });
 
   return (
     <section style={{ marginBottom: 28 }}>
       <div className="toolbar">
-        <h2 className="section-title" style={{ margin: 0 }}>Lanzamientos</h2>
-        <div className="toolbar__right"><button className="btn btn--primary" onClick={() => setEditing('new')}>+ Nuevo lanzamiento</button></div>
+        <h2 className="section-title" style={{ margin: 0 }}>Ciclos (lanzamientos)</h2>
+        <div className="toolbar__right"><button className="btn btn--primary" onClick={() => setEditing('new')}>+ Nuevo ciclo</button></div>
       </div>
       <div className="glass table-wrap">
         <table className="table">
-          <thead><tr><th>Lanzamiento</th><th>Clase</th><th>Meta</th><th>Meta diaria</th><th>Cierre de ventas</th><th></th></tr></thead>
+          <thead><tr><th>Ciclo</th><th>Funnel</th><th>Clase</th><th>Meta</th><th>Meta diaria</th><th>Cierre de ventas</th><th></th></tr></thead>
           <tbody>
-            {launches.map((l) => (
+            {shown.map((l) => (
               <tr key={l.id} className="table__row" onClick={() => setEditing(l)}>
                 <td><div className="cell-main">{l.name} {l.is_current && <Pill tone="accent">Actual</Pill>}</div><div className="cell-sub">{l.id}</div></td>
+                <td>{funnelName(l.funnel_id)}</td>
                 <td>{fmtDate(l.starts_at)}</td>
                 <td>{l.cash_goal ? fmtMoney(Number(l.cash_goal), 'USD') : <Pill tone="warn">Sin meta</Pill>}</td>
                 <td>{l.daily_cash_goal ? fmtMoney(Number(l.daily_cash_goal), 'USD') : '—'}</td>
                 <td>{fmtDate(l.sales_close_at)}</td>
                 <td onClick={(e) => e.stopPropagation()}>
-                  {!l.is_current && <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => window.confirm(`Los eventos nuevos de la landing van a entrar a "${l.name}". ¿Seguro?`) && makeCurrent(l.id)}>Marcar como actual</button>}
+                  {!l.is_current && <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => window.confirm(`Los eventos nuevos de ${funnelName(l.funnel_id)} van a entrar a "${l.name}". ¿Seguro?`) && makeCurrent(l)}>Marcar como actual</button>}
                 </td>
               </tr>
             ))}
@@ -110,15 +116,17 @@ function Launches({ launches, onSaved }: { launches: Launch[]; onSaved: () => vo
         </table>
       </div>
       {error && <p className="state--error">{error}</p>}
-      {editing && <LaunchModal launch={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onSaved(); }} />}
+      {editing && <LaunchModal launch={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onSaved(); reloadFunnels(); }} />}
     </section>
   );
 }
 
 function LaunchModal({ launch, onClose, onSaved }: { launch: Launch | null; onClose: () => void; onSaved: () => void }) {
+  const { funnels, funnelId } = useFunnels();
   const local = (iso: string | null) => (iso ? new Date(new Date(iso).getTime() - new Date(iso).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
   const [v, setV] = useState({
     id: launch?.id ?? '',
+    funnel_id: launch?.funnel_id ?? (funnelId === 'all' ? funnels[0]?.id ?? '' : funnelId),
     name: launch?.name ?? '',
     starts_at: local(launch?.starts_at ?? null),
     cash_goal: launch?.cash_goal != null ? String(launch.cash_goal) : '',
@@ -131,6 +139,7 @@ function LaunchModal({ launch, onClose, onSaved }: { launch: Launch | null; onCl
     e.preventDefault();
     const row = {
       name: v.name.trim(),
+      funnel_id: v.funnel_id,
       starts_at: v.starts_at ? new Date(v.starts_at).toISOString() : null,
       cash_goal: v.cash_goal ? Number(v.cash_goal) : null,
       daily_cash_goal: v.daily_cash_goal ? Number(v.daily_cash_goal) : null,
@@ -141,15 +150,22 @@ function LaunchModal({ launch, onClose, onSaved }: { launch: Launch | null; onCl
       if (launch) unwrap(await supabase.from('launches').update(row).eq('id', launch.id));
       else {
         if (!/^[a-z0-9-]+$/.test(v.id)) throw new Error('El identificador va en minúsculas, números y guiones (ej: clase-01-12).');
+        if (!row.funnel_id) throw new Error('Elegí el funnel del ciclo.');
         unwrap(await supabase.from('launches').insert({ ...row, id: v.id }));
       }
     });
   };
   return (
-    <Modal title={launch ? `Editar · ${launch.name}` : 'Nuevo lanzamiento'} onClose={onClose}>
+    <Modal title={launch ? `Editar · ${launch.name}` : 'Nuevo ciclo'} onClose={onClose}>
       <form className="aform" onSubmit={submit}>
         <Field label="Identificador"><input className="field" value={v.id} onChange={set('id')} disabled={Boolean(launch)} placeholder="clase-01-12" /></Field>
         <Field label="Nombre"><input className="field" value={v.name} onChange={set('name')} placeholder="Clase martes 01/12 · 18 hs" /></Field>
+        <Field label="Funnel">
+          {/* Un ciclo no cambia de funnel: sus leads, tareas y métricas quedarían mezclados. */}
+          <select className="field field--select" value={v.funnel_id} onChange={set('funnel_id')} disabled={Boolean(launch)}>
+            {funnels.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        </Field>
         <Field label="Fecha y hora de la clase"><input className="field" type="datetime-local" value={v.starts_at} onChange={set('starts_at')} /></Field>
         <Field label="Cierre de ventas"><input className="field" type="date" value={v.sales_close_at} onChange={set('sales_close_at')} /></Field>
         <Field label="Meta de cash (USD)"><input className="field" type="number" min="0" value={v.cash_goal} onChange={set('cash_goal')} /></Field>
