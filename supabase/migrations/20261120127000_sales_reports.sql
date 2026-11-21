@@ -126,31 +126,30 @@ revoke execute on function public.crm_save_report(uuid, uuid, jsonb) from public
 grant execute on function public.crm_save_report(uuid, uuid, jsonb) to authenticated;
 
 -- ---------- Cerrar la llamada exige el reporte ----------
--- Mismo cuerpo que la versión vigente, más p_report (el reporte se guarda en la misma transacción).
-drop function public.crm_record_call_result(uuid, text, text, text, numeric, text, jsonb, jsonb, timestamptz);
-CREATE OR REPLACE FUNCTION public.crm_record_call_result(p_call uuid, p_result text, p_note text DEFAULT NULL::text, p_program text DEFAULT NULL::text, p_amount_total numeric DEFAULT NULL::numeric, p_currency text DEFAULT 'USD'::text, p_payments jsonb DEFAULT '[]'::jsonb, p_installments jsonb DEFAULT '[]'::jsonb, p_followup_at timestamp with time zone DEFAULT NULL::timestamp with time zone, p_report jsonb DEFAULT NULL::jsonb)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO ''
-AS $function$
+-- crm_record_call_result no se reescribe: a la definición viva se le suma p_report (el reporte
+-- se guarda en la misma transacción) y la validación. Si alguna línea esperada no está, falla entera.
+do $mig$
 declare
-  c public.sales_calls := private.my_call(p_call);
-  ll public.lead_launches;
-  l public.leads;
-  closer_name text;
-  v_client uuid;
-  v_new_client boolean := false;
-  cur text := upper(coalesce(nullif(trim(p_currency), ''), 'USD'));
-  pay jsonb;
-  collected numeric := 0;
-  n int := 0;
-  methods text;
+  d text;
+begin
+  -- Reemplaza `a` por `b`; falla (y no se aplica nada) si `a` no aparece exactamente una vez.
+  create function pg_temp.swap(s text, a text, b text) returns text language plpgsql as $f$
+  begin
+    if (length(s) - length(replace(s, a, ''))) / length(a) <> 1 then raise exception 'No encontré una sola vez: «%»', a; end if;
+    return replace(s, a, b);
+  end $f$;
+
+  -- crm_record_call_result
+  d := pg_get_functiondef('public.crm_record_call_result(uuid, text, text, text, numeric, text, jsonb, jsonb, timestamptz)'::regprocedure);
+  d := pg_temp.swap(d, $q$p_followup_at timestamp with time zone DEFAULT NULL::timestamp with time zone)$q$, $q$p_followup_at timestamp with time zone DEFAULT NULL::timestamp with time zone, p_report jsonb DEFAULT NULL::jsonb)$q$);
+  d := pg_temp.swap(d, $q$  methods text;
+begin
+$q$, $q$  methods text;
   rpt public.sales_reports;
 begin
-  if c.result in ('cerro', 'no_cerro') then raise exception 'La call ya tiene resultado'; end if;
-  if p_result not in ('cerro', 'no_cerro', 'seguimiento') then raise exception 'Resultado inválido'; end if;
-  select * into ll from public.lead_launches where id = c.lead_launch_id for update;
+$q$);
+  d := pg_temp.swap(d, $q$  select * into ll from public.lead_launches where id = c.lead_launch_id for update;
+$q$, $q$  select * into ll from public.lead_launches where id = c.lead_launch_id for update;
 
   -- Reporte por fases (SOP 04): una llamada no se marca realizada sin su reporte.
   if p_report is not null then
@@ -162,74 +161,12 @@ begin
   if p_result = 'no_cerro' and coalesce(trim(rpt.no_close_reason), '') = '' then raise exception 'En el reporte falta por qué no cerró (textual)'; end if;
   if p_result in ('cerro', 'no_cerro') and trim(rpt.goes_to) = '' then raise exception 'En el reporte falta a qué pieza va cada dato'; end if;
   if p_result = 'cerro' and rpt.lane is null then raise exception 'En el reporte falta el carril (OS o Lite)'; end if;
-  select * into l from public.leads where id = ll.lead_id;
-  select name into closer_name from public.sales_reps where id = c.closer_id;
+$q$);
+  drop function public.crm_record_call_result(uuid, text, text, text, numeric, text, jsonb, jsonb, timestamptz);
+  execute d;
+  drop function pg_temp.swap(text, text, text);
+end
+$mig$;
 
-  if p_result = 'cerro' then
-    if coalesce(p_amount_total, 0) <= 0 then raise exception 'Falta el monto de la venta'; end if;
-    select id into v_client from public.clients
-    where (l.email is not null and lower(email) = l.email)
-       or (l.phone is not null and regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g') = l.phone)
-    order by created_at limit 1;
-    if v_client is null then
-      insert into public.clients (full_name, email, phone, program, status, start_date, total_amount, currency, installments_count, notes)
-      values (coalesce(nullif(l.full_name, ''), l.email, '+' || l.phone), l.email, case when l.phone is not null then '+' || l.phone end,
-              nullif(trim(coalesce(p_program, '')), ''), 'activo', current_date, p_amount_total, cur,
-              greatest(1, jsonb_array_length(coalesce(p_payments, '[]')) + jsonb_array_length(coalesce(p_installments, '[]'))),
-              'Venta del CRM · ' || ll.launch_id || ' · closer ' || coalesce(closer_name, '—'))
-      returning id into v_client;
-      v_new_client := true;
-    end if;
-
-    for pay in select * from jsonb_array_elements(coalesce(p_payments, '[]')) loop
-      if coalesce((pay ->> 'amount')::numeric, 0) <= 0 then continue; end if;
-      n := n + 1;
-      insert into public.payments (client_id, sales_call_id, installment_number, amount, currency, due_date, paid_at, method, receipt_path, notes)
-      values (v_client, p_call, case when v_new_client then n end, (pay ->> 'amount')::numeric, cur,
-              coalesce((pay ->> 'paid_at')::date, current_date), coalesce((pay ->> 'paid_at')::date, current_date),
-              nullif(trim(coalesce(pay ->> 'method', '')), ''), nullif(pay ->> 'receipt_path', ''),
-              'Venta · ' || ll.launch_id || ' · closer ' || coalesce(closer_name, '—'));
-      collected := collected + (pay ->> 'amount')::numeric;
-    end loop;
-    for pay in select * from jsonb_array_elements(coalesce(p_installments, '[]')) loop
-      if coalesce((pay ->> 'amount')::numeric, 0) <= 0 then continue; end if;
-      n := n + 1;
-      insert into public.payments (client_id, sales_call_id, installment_number, amount, currency, due_date, notes)
-      values (v_client, p_call, case when v_new_client then n end, (pay ->> 'amount')::numeric, cur,
-              (pay ->> 'due_date')::date, 'Cuota · venta ' || ll.launch_id);
-    end loop;
-    select string_agg(distinct x ->> 'method', ' + ') into methods from jsonb_array_elements(coalesce(p_payments, '[]')) x;
-  end if;
-
-  update public.sales_calls set
-    status = 'realizada', attendance = coalesce(attendance, 'se_presento'), result = p_result,
-    result_note = nullif(trim(coalesce(p_note, '')), ''),
-    program = case when p_result = 'cerro' then nullif(trim(coalesce(p_program, '')), '') end,
-    amount_total = case when p_result = 'cerro' then p_amount_total end,
-    amount_collected = case when p_result = 'cerro' then collected end,
-    currency = cur, payment_method = methods, client_id = v_client,
-    closer_followup_at = case when p_result = 'seguimiento' then p_followup_at end,
-    closed_at = now(), updated_at = now()
-  where id = p_call;
-
-  update public.lead_launches set post_class_status = case p_result
-      when 'cerro' then 'Cliente · falta onboarding' when 'no_cerro' then 'No se cerró' else 'Agendado' end,
-    updated_at = now()
-  where id = ll.id;
-
-  perform private.log_event(ll.lead_id, ll.launch_id, 'resultado',
-    case p_result
-      when 'cerro' then 'Venta: ' || cur || ' ' || p_amount_total || coalesce(' · ' || nullif(trim(p_program), ''), '')
-        || ' · cobrado ' || collected || coalesce(' (' || methods || ')', '')
-        || case when v_new_client then ' · cliente creado en Clientes y pagos' else ' · pagos sumados al cliente existente' end
-      when 'no_cerro' then 'No cerró'
-      else 'Seguimiento del closer' || coalesce(' · ' || to_char(p_followup_at at time zone 'America/Argentina/Buenos_Aires', 'DD/MM HH24:MI'), '')
-    end || coalesce(E'\n' || nullif(trim(p_note), ''), ''),
-    jsonb_build_object('call_id', p_call, 'client_id', v_client, 'from', ll.post_class_status));
-
-  return jsonb_build_object('client_id', v_client, 'new_client', v_new_client, 'collected', collected);
-end;
-$function$;
 revoke execute on function public.crm_record_call_result(uuid, text, text, text, numeric, text, jsonb, jsonb, timestamptz, jsonb) from public, anon;
 grant execute on function public.crm_record_call_result(uuid, text, text, text, numeric, text, jsonb, jsonb, timestamptz, jsonb) to authenticated;
-
