@@ -2,7 +2,7 @@ import { useEffect, useState, type ComponentType, type SVGProps } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { LeadSoundToggle } from '../components/NewLeadSound';
-import { FunnelSwitcher, useFunnels } from '../funnels/FunnelContext';
+import { FunnelMenu, useFunnels } from '../funnels/FunnelContext';
 import type { Funnel } from '../lib/types';
 import {
   Bars,
@@ -127,7 +127,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const current = useCurrent();
-  const { funnel } = useFunnels();
+  const { funnel, launch } = useFunnels();
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.kinds || !funnel || i.kinds.includes(funnel.kind)) })).filter((g) => g.items.length);
   const [open, setOpen] = useState(readOpen);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -160,6 +160,7 @@ export default function AdminLayout() {
           <span className="rail__logo">G</span>
           <span className="rail__label rail__brand-name">Genesis <small>Superadmin</small></span>
         </Link>
+        <FunnelMenu />
 
         <nav className="rail__nav">
           {groups.map((g) => (
@@ -206,8 +207,9 @@ export default function AdminLayout() {
           <div>
             <span className="eyebrow">{current?.group ?? 'Superadmin'}</span>
             <h1 className="admin__title">{current?.label ?? 'Panel de control'}</h1>
+            {/* Qué funnel y ciclo se está mirando (se cambia desde la barra lateral). */}
+            <span className="admin__scope muted">{funnel ? `${funnel.name}${launch ? ` · ${launch.name}` : ''}` : 'Todos los funnels'}</span>
           </div>
-          <div className="admin__funnel"><FunnelSwitcher /></div>
           <LeadSoundToggle className="icon-btn admin__sound" />
         </header>
         <div className="admin__content fade-in" key={current?.to}>

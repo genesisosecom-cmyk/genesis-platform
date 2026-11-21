@@ -1,4 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, Layers, Rocket } from '../components/Icons';
 import { useAuth } from '../auth/AuthContext';
 import { supabase, unwrap } from '../lib/supabase';
 import type { Funnel, Launch } from '../lib/types';
@@ -151,5 +153,77 @@ export function FunnelSwitcher({ compact }: { compact?: boolean }) {
         </select>
       )}
     </div>
+  );
+}
+
+/**
+ * Selector de funnel de la barra lateral del admin: una tarjeta con el funnel en uso que abre un
+ * menú para cambiar de funnel (Todos · Webinars · Evergreen orgánico) y, dentro del funnel, de ciclo.
+ * Con la barra achicada queda solo el ícono.
+ */
+export function FunnelMenu() {
+  const { funnels, funnelId, funnel, setFunnel, cycles, launch, setLaunch, loading } = useFunnels();
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ left: 0, top: 0 });
+  const btn = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !(e.target as Element).closest('.fmenu, .fpick')) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [open]);
+
+  if (loading || !funnels.length) return null;
+  const toggle = () => {
+    const r = btn.current?.getBoundingClientRect();
+    if (r) setPos({ left: r.left, top: r.bottom + 6 });
+    setOpen((o) => !o);
+  };
+  const Icon = funnel?.kind === 'webinar' ? Rocket : Layers;
+  const name = funnel?.name ?? 'Todos los funnels';
+
+  return (
+    <>
+      <button ref={btn} type="button" className={`fpick${open ? ' is-open' : ''}`} onClick={toggle} aria-haspopup="menu" aria-expanded={open} title={`Funnel · ${name}`}>
+        <span className="fpick__icon"><Icon width={16} height={16} /></span>
+        <span className="fpick__text rail__label">
+          <small>Funnel</small>
+          <span className="fpick__name">{name}</span>
+        </span>
+        <svg className="fpick__chev rail__label" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" />
+        </svg>
+      </button>
+      {open && createPortal(
+        <div className="fmenu glass" role="menu" style={{ left: pos.left, top: pos.top }}>
+          <span className="fmenu__title">Funnel</span>
+          {[{ id: 'all', name: 'Todos los funnels', hint: 'Consolidado de caja y ventas' }, ...funnels.map((f) => ({ id: f.id, name: f.name, hint: f.kind === 'webinar' ? 'Lanzamientos con clase' : f.kind === 'evergreen' ? 'Contenido, palabras y llamadas' : '' }))].map((f) => (
+            <button key={f.id} type="button" role="menuitemradio" aria-checked={funnelId === f.id} className={`fmenu__item${funnelId === f.id ? ' is-on' : ''}`} onClick={() => { setFunnel(f.id); if (f.id === 'all') setOpen(false); }}>
+              <span><span className="fmenu__name">{f.name}</span>{f.hint && <small>{f.hint}</small>}</span>
+              {funnelId === f.id && <Check width={15} height={15} />}
+            </button>
+          ))}
+          {cycles.length > 0 && (
+            <>
+              <span className="fmenu__title">{funnel ? `Ciclo de ${funnel.name}` : 'Ciclo'}</span>
+              {cycles.map((l) => (
+                <button key={l.id} type="button" role="menuitemradio" aria-checked={launch?.id === l.id} className={`fmenu__item${launch?.id === l.id ? ' is-on' : ''}`} onClick={() => { setLaunch(l.id); setOpen(false); }}>
+                  <span><span className="fmenu__name">{l.name}</span>{l.is_current && <small>Actual</small>}</span>
+                  {launch?.id === l.id && <Check width={15} height={15} />}
+                </button>
+              ))}
+            </>
+          )}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
