@@ -33,6 +33,8 @@ import TeamPage from './admin/team/TeamPage';
 import SalesPage from './admin/sales/SalesPage';
 import CrmConfigPage from './admin/sales/CrmConfigPage';
 import TasksPage from './admin/tasks/TasksPage';
+import ContentPiecesPage from './admin/funnel/ContentPiecesPage';
+import SalesReportsPage from './admin/funnel/SalesReportsPage';
 import SdrPage from './crm/SdrPage';
 import CloserPage from './crm/CloserPage';
 import FullScreenMessage from './components/FullScreenMessage';
@@ -118,6 +120,8 @@ export default function App() {
           <Route path="ventas" element={<SalesPage />} />
           <Route path="crm" element={<CrmConfigPage />} />
           <Route path="tareas" element={<TasksPage />} />
+          <Route path="piezas" element={<ContentPiecesPage />} />
+          <Route path="reportes-ventas" element={<SalesReportsPage />} />
           <Route path="panel-sdr" element={<SdrPage />} />
           <Route path="panel-closer" element={<CloserPage />} />
         </Route>

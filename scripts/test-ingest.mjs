@@ -1,4 +1,5 @@
-// Prueba de punta a punta de los endpoints de la landing (/optin, /visita, /grupo, /aplicacion).
+// Prueba de punta a punta de los endpoints de la landing (/optin, /visita, /grupo, /aplicacion)
+// y de las palabras clave del evergreen (/palabra).
 //
 //   GENESIS_INGEST_SECRET=… SUPABASE_SERVICE_ROLE_KEY=… \
 //     node scripts/test-ingest.mjs https://zanwrwysbmvgytfzymaz.supabase.co/functions/v1/ingest/optin
@@ -25,6 +26,7 @@ const mail = (who) => `${tag}-${who}@genesis.test`;
 const phone = (n) => `+549${String(ts).slice(-8)}${n}`;
 const digits = (p) => p.replace(/\D/g, '');
 const SOURCE = `test-${ts}`; // fuente única para poder borrar las visitas de prueba
+const IG = `test.genesis.${ts}`; // Instagram de prueba para /palabra
 
 let failed = 0;
 const timings = [];
@@ -180,6 +182,28 @@ async function main() {
 
   const { data: logs } = await db.from('ingest_log').select('endpoint, secret, status').like('payload->>email', `${tag}%`);
   check('ingest_log registra los requests', (logs?.length ?? 0) >= 6);
+
+  await palabra();
+}
+
+/** /palabra: ManyChat avisa que alguien escribió una palabra clave. Entra al ciclo actual del evergreen. */
+async function palabra() {
+  const sinSecreto = await fetch(url('palabra'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ instagram: IG, keyword: 'CUENTA' }) });
+  check('/palabra sin secreto: 401', sinSecreto.status === 401, `status ${sinSecreto.status}`);
+  if (!secret) return console.log('  (sin GENESIS_INGEST_SECRET no se puede probar el resto de /palabra)');
+
+  const p1 = await post('palabra', { nombre: `Palabra ${tag}`, instagram: `@${IG.toUpperCase()}`, keyword: 'cuenta', canal: 'instagram_dm' });
+  check('/palabra: crea el lead', p1.status === 200 && p1.json?.ok && p1.json.repetido === false, JSON.stringify(p1.json));
+  const p2 = await post('palabra', { instagram: `https://instagram.com/${IG}/`, keyword: 'PISO' });
+  check('/palabra repetida: mismo lead', p2.json?.ok && p2.json.repetido === true && p2.json.id === p1.json?.id, JSON.stringify(p2.json));
+  const mal = await post('palabra', { nombre: 'x', keyword: 'CUENTA' });
+  check('/palabra sin instagram ni teléfono: 400', mal.status === 400 && mal.json?.ok === false);
+
+  if (!db) return;
+  const { data: lead } = await db.from('leads').select('*, lead_launches(*, launch:launches(funnel_id)), lead_events(*)').eq('instagram', IG).maybeSingle();
+  const ll = lead?.lead_launches?.[0];
+  check('/palabra: un lead, en el ciclo del evergreen, con su primera palabra', lead?.lead_launches?.length === 1 && ll.launch?.funnel_id === 'evergreen-organico' && ll.entry_keyword === 'CUENTA' && ll.stage === 'Palabra recibida', JSON.stringify(ll));
+  check('/palabra: dos eventos «palabra» en el historial', lead?.lead_events?.filter((e) => e.kind === 'palabra').length === 2);
 }
 
 async function cleanup() {
@@ -187,6 +211,8 @@ async function cleanup() {
   const like = `${tag}%`;
   const steps = [
     db.from('leads').delete().like('email', like),
+    db.from('leads').delete().eq('instagram', IG),
+    db.from('ingest_log').delete().ilike('payload->>instagram', `%${IG}%`),
     db.from('lead_pending_events').delete().like('email', like),
     db.from('landing_visits').delete().like('source', `Test-${ts}%`),
     db.from('ingest_log').delete().like('payload->>email', like),

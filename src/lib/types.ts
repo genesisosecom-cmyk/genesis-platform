@@ -137,9 +137,32 @@ export interface Payment {
 
 // ---------- Leads de la landing ----------
 
+/** Funnel: contenedor permanente (webinar, evergreen…). Sus ciclos son los `Launch`. */
+export interface FunnelConfig {
+  /** Etapas del pipeline (en evergreen viven en lead_launches.stage). */
+  stages?: string[];
+  stage_field?: string;
+  lead_fields?: string[];
+  qualified_rule?: string;
+  kpis?: string[];
+  programs?: { id: string; price_usd?: number; public?: boolean }[];
+  keywords?: string[];
+}
+
+export interface Funnel {
+  id: string;
+  name: string;
+  kind: 'webinar' | 'evergreen' | 'otro';
+  active: boolean;
+  sort: number;
+  config: FunnelConfig;
+  created_at: string;
+}
+
 export interface Launch {
   id: string;
   name: string;
+  funnel_id: string;
   starts_at: string | null;
   is_current: boolean;
   cash_goal: number | null;
@@ -221,6 +244,8 @@ export interface Lead {
   id: string;
   email: string | null;
   phone: string | null;
+  /** Usuario de Instagram sin @ (los que entran por DM o comentario). */
+  instagram: string | null;
   full_name: string;
   sdr_id: string | null;
   possible_duplicate: boolean;
@@ -277,6 +302,48 @@ export interface LeadLaunch {
   /** Desde cuándo está en «Ruta a la clase» (null = no está). */
   class_route_at: string | null;
   agents_sent: { agents: string[]; channel: string; at: string; by: string }[];
+  // ---- Evergreen (todos opcionales; el webinar no los usa) ----
+  subavatar: Subavatar | null;
+  /** Palabra que escribió (CUENTA, PISO…). */
+  entry_keyword: string | null;
+  /** Pieza de contenido que lo trajo. */
+  entry_content_id: string | null;
+  entry_channel: EntryChannel | null;
+  /** Dolor del mapa (1 a 10). */
+  pain: number | null;
+  /** Frase textual del lead. */
+  quote: string | null;
+  sells_today: boolean | null;
+  sells_what: string | null;
+  repurchase_cycle: string | null;
+  capital: string | null;
+  wanted_when: string | null;
+  /** Carril: llamada de OS, Lite o sin llamada. */
+  lane: 'os' | 'lite' | 'sin_llamada' | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type Subavatar = 'S1' | 'S2' | 'S3' | 'sin_capital' | 'afuera';
+export type EntryChannel = 'instagram_dm' | 'instagram_comentario' | 'whatsapp' | 'youtube' | 'tiktok' | 'otro';
+
+/** Reporte de ventas por fases (SOP 04): uno por llamada. */
+export interface SalesReport {
+  id: string;
+  lead_launch_id: string;
+  sales_call_id: string | null;
+  author_name: string;
+  first_touch: string | null;
+  last_touch: string | null;
+  entry_quote: string | null;
+  pain: number | null;
+  pain_quote: string | null;
+  beliefs: string | null;
+  buy_reason: string | null;
+  no_close_reason: string | null;
+  objections: string | null;
+  lane: 'os' | 'lite' | 'ninguno' | null;
+  goes_to: string;
   created_at: string;
   updated_at: string;
 }

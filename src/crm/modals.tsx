@@ -205,8 +205,8 @@ function OwnResourceForm({ resource, ownerId, role, onClose, onSaved }: { resour
 }
 
 /** Carga manual (DM, referido…). Queda asignado a quien lo crea si lo elige. */
-export function NewLeadModal({ closers, canAssign, onClose, onCreated }: { closers: SalesRep[]; canAssign: boolean; onClose: () => void; onCreated: () => void }) {
-  const [v, setV] = useState({ name: '', email: '', phone: '', inversion: '', origin: 'DM de Instagram', assignMe: canAssign, closerId: '', callAt: '' });
+export function NewLeadModal({ closers, canAssign, funnelId, evergreen, onClose, onCreated }: { closers: SalesRep[]; canAssign: boolean; /** Funnel al que entra el lead (sin esto, el webinar). */ funnelId?: string; /** Ficha del evergreen: suma Instagram y no pide inversión en Meta. */ evergreen?: boolean; onClose: () => void; onCreated: () => void }) {
+  const [v, setV] = useState({ name: '', email: '', phone: '', instagram: '', inversion: '', origin: 'DM de Instagram', assignMe: canAssign, closerId: '', callAt: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((s) => ({ ...s, [k]: e.target.value }));
@@ -214,12 +214,12 @@ export function NewLeadModal({ closers, canAssign, onClose, onCreated }: { close
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!v.name.trim()) return setError('Falta el nombre.');
-    if (!v.email.trim() && !v.phone.trim()) return setError('Cargá el mail o el WhatsApp.');
+    if (!v.email.trim() && !v.phone.trim() && !v.instagram.trim()) return setError(evergreen ? 'Cargá el mail, el WhatsApp o el Instagram.' : 'Cargá el mail o el WhatsApp.');
     if (Boolean(v.closerId) !== Boolean(v.callAt)) return setError('Para agendar elegí closer y fecha de la call.');
     setBusy(true);
     setError(null);
     try {
-      await createLead({ ...v, closerId: v.closerId || null, callAt: localToIso(v.callAt) });
+      await createLead({ ...v, closerId: v.closerId || null, callAt: localToIso(v.callAt), funnelId: funnelId ?? null });
       onCreated();
     } catch (err) {
       setError((err as Error).message);
@@ -233,12 +233,16 @@ export function NewLeadModal({ closers, canAssign, onClose, onCreated }: { close
         <Field label="Nombre *" full><input className="field" value={v.name} onChange={set('name')} autoFocus /></Field>
         <Field label="Mail"><input className="field" type="email" value={v.email} onChange={set('email')} /></Field>
         <Field label="WhatsApp (con código de país)"><input className="field" value={v.phone} onChange={set('phone')} placeholder="+54 9 11 …" /></Field>
-        <Field label="Inversión diaria en Meta">
-          <select className="field field--select" value={v.inversion} onChange={set('inversion')}>
-            <option value="">Sin dato</option>
-            {INVESTMENT_LEVELS.map((i) => <option key={i} value={i}>{i}</option>)}
-          </select>
-        </Field>
+        {evergreen ? (
+          <Field label="Instagram"><input className="field" value={v.instagram} onChange={set('instagram')} placeholder="@usuario" /></Field>
+        ) : (
+          <Field label="Inversión diaria en Meta">
+            <select className="field field--select" value={v.inversion} onChange={set('inversion')}>
+              <option value="">Sin dato</option>
+              {INVESTMENT_LEVELS.map((i) => <option key={i} value={i}>{i}</option>)}
+            </select>
+          </Field>
+        )}
         <Field label="Origen">
           <input className="field" list="lead-origins" value={v.origin} onChange={set('origin')} />
           <datalist id="lead-origins">{['DM de Instagram', 'Referido', 'WhatsApp', 'Evento', 'Otro'].map((o) => <option key={o} value={o} />)}</datalist>

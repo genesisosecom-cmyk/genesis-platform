@@ -1,17 +1,24 @@
 // Edge Function: recibe los eventos de la landing de Génesis (applygenesis.com).
 // La landing los reenvía server-to-server con un POST JSON a:
 //   /functions/v1/ingest/optin · /visita · /grupo · /aplicacion
+// y ManyChat avisa cada palabra clave del evergreen (CUENTA, PISO…) a:
+//   /functions/v1/ingest/palabra   { nombre, instagram y/o telefono, keyword, canal, content_url? }
+// Todos aceptan un campo opcional `funnel` (o `launch_id`): sin ese campo los de la landing entran
+// al ciclo actual del funnel `webinar`, como siempre, y /palabra al ciclo actual del evergreen.
 // Cada evento es una sola llamada a la función de Postgres ingest_<evento>, que hace
 // todo el upsert en una transacción. El log crudo se guarda después de responder.
 //
 // Pública (desplegar con --no-verify-jwt). Secreto compartido: header X-Genesis-Secret
 // contra GENESIS_INGEST_SECRET. Por ahora, si el header no viene se acepta igual y queda
-// registrado en ingest_log; si viene con otro valor se rechaza.
+// registrado en ingest_log; si viene con otro valor se rechaza. /palabra es nueva y no tiene
+// llamadores viejos: exige el secreto siempre.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
 declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void };
 
-const EVENTS = ['optin', 'visita', 'grupo', 'aplicacion'] as const;
+const EVENTS = ['optin', 'visita', 'grupo', 'aplicacion', 'palabra'] as const;
+/** Endpoints que no aceptan requests sin el secreto. */
+const STRICT: readonly string[] = ['palabra'];
 type IngestEvent = (typeof EVENTS)[number];
 
 const cors = {
@@ -71,9 +78,9 @@ Deno.serve(async (req) => {
   let result: Record<string, unknown>;
   let error: string | null = null;
 
-  if (secret === 'invalido') {
+  if (secret === 'invalido' || (STRICT.includes(event) && secret !== 'ok')) {
     status = 401;
-    result = failure(event, 'Secreto inválido');
+    result = failure(event, secret === 'invalido' ? 'Secreto inválido' : 'Falta el header X-Genesis-Secret');
   } else if (!body) {
     status = 400;
     result = failure(event, 'Body inválido: se esperaba JSON');
@@ -89,7 +96,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (secret === 'falta') console.warn(`ingest/${event}: llegó sin X-Genesis-Secret`);
+  if (secret === 'falta' && !STRICT.includes(event)) console.warn(`ingest/${event}: llegó sin X-Genesis-Secret`);
   if (error) console.error(`ingest/${event}:`, error);
 
   // El log no demora la respuesta.

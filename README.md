@@ -70,16 +70,63 @@ La landing reenvía cada evento server-to-server a la Edge Function `ingest`:
 | `POST …/ingest/optin` | Crea o actualiza el lead (clave: email en minúsculas y/o teléfono solo dígitos) y lo suma al lanzamiento actual. Responde `{ ok, id, repetido }`. |
 | `POST …/ingest/visita` | Suma 1 visita por día, fuente y versión (`tracking.ab`). |
 | `POST …/ingest/grupo` | Marca que tocó "Entrar al grupo". Si el optin todavía no llegó, queda pendiente y se aplica cuando llega. |
-| `POST …/ingest/aplicacion` | Guarda la aplicación post-clase, asigna SDR si no tenía y responde `{ ok, ruta, sdr, wa }` (sin SDR: `sdr` vacío y el WhatsApp por defecto). |
+| `POST …/ingest/aplicacion` | Guarda la aplicación post-clase, asigna SDR si no tenía y responde `{ ok, ruta, sdr, wa }` (sin SDR: `sdr` vacío y el WhatsApp por defecto). Con `funnel: "evergreen"` entra al evergreen (etapa «Aplicó») y lee las preguntas nuevas: `vende_hoy`, `que_vende`, `ciclo_recompra`, `capital`, `video`. |
+| `POST …/ingest/palabra` | Palabra clave del evergreen (ManyChat). Responde `{ ok, id, lead_launch_id, repetido }`. Exige `X-Genesis-Secret`. |
 
 - URL base: `https://zanwrwysbmvgytfzymaz.supabase.co/functions/v1/ingest/optin`. Con el dominio del campus también funciona `https://CAMPUS/api/public/optin` (rewrite en `vercel.json`).
 - Deploy: `supabase functions deploy ingest --no-verify-jwt` y el secret `GENESIS_INGEST_SECRET` (`supabase secrets set GENESIS_INGEST_SECRET=…`). La landing lo manda en el header `X-Genesis-Secret`; por ahora, si no viene se acepta igual y queda registrado en `ingest_log`.
 - Toda la lógica está en las funciones de Postgres `ingest_*` (migración `20261031000000_leads.sql`), una llamada por evento.
-- Lanzamientos en la tabla `launches` (`is_current` marca a cuál se asignan los eventos).
+- Lanzamientos (ciclos) en la tabla `launches`; cada uno pertenece a un funnel y `is_current` marca el ciclo actual **de ese funnel**. Sin el campo `funnel`, los eventos de la landing entran al ciclo actual del funnel `webinar`.
+- `POST …/ingest/palabra` (ManyChat): alguien escribió una palabra clave. Ver «Funnels».
 - Prueba de punta a punta (borra sus datos al final):
   ```bash
   GENESIS_INGEST_SECRET=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/test-ingest.mjs https://zanwrwysbmvgytfzymaz.supabase.co/functions/v1/ingest/optin
   ```
+
+## Funnels (webinars, evergreen orgánico y los que vengan)
+
+Un **funnel** es un contenedor permanente; un **lanzamiento** (`launches`) es un ciclo dentro de un funnel. Todo lo que ya colgaba de `launch_id` (leads, eventos, visitas, llamadas) queda agrupado por funnel sin migrar nada.
+
+```
+funnels (webinar · evergreen-organico · el próximo)
+   └── launches (ciclos: clase-17-11 … | evergreen-2026-q4, uno por trimestre)
+          └── lead_launches, lead_events, landing_visits, sales_calls, tasks, contenido
+```
+
+- **Selector de funnel** (arriba en el admin; en los paneles de SDR y closer, debajo del título): Todos · Webinars · Evergreen orgánico y, al lado, el ciclo. Se guarda la última elección por usuario (en el navegador). Leads, Ventas, Métricas, Tareas, Contenido y Reportes se filtran por ese selector. Con «Todos», el ciclo por defecto es el actual del webinar.
+- **Resumen:** con «Todos», caja y ventas consolidadas y una tarjeta por funnel; con un funnel, sus KPIs (`funnels.config.kpis`, función `funnel_overview`).
+- **Tareas:** `tasks` y `task_phases` tienen `funnel_id` (el de la tarea es siempre el de su fase). «Mis tareas» muestra todos los funnels. Una tarea puede repetirse todas las semanas (`recurrence = 'semanal:mar'`): al pasarla a «Hecha» se crea sola la de la semana siguiente (rituales del martes, viernes y sábado).
+- **Leads del evergreen:** entran por palabra clave y avanzan por las etapas de `funnels.config.stages` (`lead_launches.stage`): Palabra recibida → En conversación → Calificado → Aplicó → Llamada agendada → Cerró OS / Cerró Lite / No cerró / Nutrición / No califica. La ficha guarda subavatar, palabra, pieza que lo trajo, dolor, frase textual y las 4 preguntas de calificación. **Calificado = vende hoy + capital para Genesis OS** (`sells_today` y carril `os`); no se usa la inversión en Meta. Agendar, cerrar o no cerrar la llamada mueve la etapa sola. Los leads se identifican por email, teléfono o **Instagram** (`leads.instagram`).
+- **Palabras:** `POST …/ingest/palabra` con `{ nombre, instagram y/o telefono, keyword, canal, content_url? }` y el header `X-Genesis-Secret` (obligatorio en esta ruta). Crea o encuentra el lead, lo suma al ciclo actual del evergreen con su palabra, resuelve qué pieza lo trajo (por link, o por palabra + fecha) y deja el evento `palabra`. Lo mismo se puede cargar a mano desde Leads → «Cargar palabra». Todos los endpoints aceptan `funnel` (id o tipo, ej. `evergreen`) o `launch_id` para entrar a otro funnel.
+- **Contenido** (Admin → Orgánico → Contenido): registro de piezas (`content_pieces`) con formato, subavatar, dolor, palabra, estado y métricas a 48 h, 7 y 30 días (`content_metrics`). Vista **Semana** (grilla lunes a domingo por formato, con el hilo, el pedido y las notas del ritual, `content_weeks`), **Lista** (filtros y lecturas pendientes) y **Resultados** por pieza, por palabra y por subavatar (`content_results`, `keyword_results`, `subavatar_results`): salen solos de qué pieza y qué palabra trajo a cada lead, cruzado con llamadas y pagos.
+- **Reporte de ventas por fases** (SOP 04, tabla `sales_reports`): antes de la llamada, triage y después de la llamada, con carril (OS / Lite) y a qué pieza va cada dato. **Una llamada no se puede cerrar sin su reporte** (lo valida `crm_record_call_result`); el setter puede adelantar las fases 1 y 2 desde la ficha del lead. Admin → Reportes de ventas los lista con filtros por dolor, subavatar y motivo de no cierre, y marca las llamadas hechas que no lo tienen.
+- **Métricas** (landing, VSL, tests, ads) son del funnel de webinars: con otro funnel elegido no aparecen.
+- Genesis Lite es interno: solo aparece como programa y como carril de la llamada, nunca en algo público.
+
+### Cómo sumar un funnel nuevo
+
+No hace falta tocar el código: es una fila en `funnels` con su configuración, su primer ciclo y sus fases de tareas.
+
+```sql
+-- 1. El funnel y su configuración (etapas del pipeline, KPIs del tablero, programas y palabras)
+insert into public.funnels (id, name, kind, sort, config) values (
+  'mini-clase', 'Mini clases', 'otro', 3,   -- kind: webinar | evergreen | otro
+  '{"stages": ["Nuevo", "En conversación", "Aplicó", "Cerró", "No cerró"],
+    "kpis": ["calificados", "aplicaciones", "llamadas", "cierres", "cash"],
+    "programs": [{"id": "Genesis OS", "price_usd": 5000, "public": true}],
+    "keywords": []}'
+);
+-- 2. Su primer ciclo (uno actual por funnel)
+insert into public.launches (id, name, funnel_id, is_current) values ('mini-clase-2027-01', 'Mini clase · enero 2027', 'mini-clase', true);
+-- 3. Sus fases de tareas (nombre y prefijo únicos en todo el campus)
+insert into public.task_phases (name, prefix, sort, funnel_id) values ('Mini clase · Armado', 'MC', 40, 'mini-clase');
+```
+
+- `kind` define qué pantallas usa: `evergreen` → tablero por etapas, ficha de calificación y palabras; `webinar` → listas del SDR, métricas de landing y ads; `otro` → como webinar, sin las métricas de landing.
+- KPIs disponibles: `optins`, `calificados`, `aplicaciones`, `llamadas`, `cierres`, `cierres_os`, `cierres_lite`, `cash`, `conversaciones_por_palabra`, `conversaciones_calificadas`.
+- Para que la landing o ManyChat manden eventos a ese funnel: campo `"funnel": "mini-clase"` en el cuerpo del POST.
+- Ciclos nuevos (por ejemplo, el del trimestre siguiente): Admin → Config. CRM → «Nuevo ciclo», eligiendo el funnel, y «Marcar como actual».
+- Para borrar un funnel de prueba: primero sus tareas, los leads de sus ciclos, sus fases, sus ciclos y al final la fila de `funnels`.
 
 ## Equipo de ventas: paneles de SDR y closer
 

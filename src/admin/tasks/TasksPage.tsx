@@ -9,6 +9,7 @@ import {
   fetchPhases,
   fetchTasks,
   isOverdue,
+  recurrenceLabel,
   STATUSES,
   STATUS_CLASS,
   subscribeTasks,
@@ -20,6 +21,7 @@ import {
   type TaskStatus,
 } from './api';
 import TaskModal from './TaskModal';
+import { useFunnels } from '../../funnels/FunnelContext';
 
 type View = 'tablero' | 'lista' | 'mias' | 'resumen';
 const VIEWS: [View, string][] = [['tablero', 'Tablero'], ['lista', 'Lista por fase'], ['mias', 'Mis tareas'], ['resumen', 'Resumen por persona']];
@@ -62,10 +64,18 @@ export default function TasksPage() {
     [],
   );
 
-  const [rawTasks = [], people = [], phases = []] = data ?? [];
-  const tasks = useMemo(() => rawTasks.map((t) => (pending[t.id] ? { ...t, status: pending[t.id] } : t)), [rawTasks, pending]);
+  const { funnelId, funnel, funnels } = useFunnels();
+  // Al cambiar de funnel, el filtro de fase del funnel anterior no aplica.
+  useEffect(() => setPhase('all'), [funnelId]);
+
+  const [rawTasks = [], people = [], allPhases = []] = data ?? [];
+  const allTasks = useMemo(() => rawTasks.map((t) => (pending[t.id] ? { ...t, status: pending[t.id] } : t)), [rawTasks, pending]);
+  // Tareas y fases del funnel elegido arriba (con «Todos», todas). «Mis tareas» muestra siempre todos los funnels.
+  const tasks = useMemo(() => (funnelId === 'all' ? allTasks : allTasks.filter((t) => t.funnel_id === funnelId)), [allTasks, funnelId]);
+  const phases = funnelId === 'all' ? allPhases : allPhases.filter((p) => p.funnel_id === funnelId);
+  const funnelName = (id: string) => funnels.find((f) => f.id === id)?.name ?? id;
   const openId = params.get('t');
-  const open = openId ? tasks.find((t) => t.id === openId) ?? null : null;
+  const open = openId ? allTasks.find((t) => t.id === openId) ?? null : null;
   const openTask = (id: string | null) => setParams(id ? { t: id } : {}, { replace: true });
 
   const q = query.trim().toLowerCase();
@@ -140,13 +150,13 @@ export default function TasksPage() {
       )}
       {notice && <p className="state--error" style={{ marginBottom: 16 }}>{notice}</p>}
 
-      {tasks.length === 0 ? (
-        <EmptyState title="Todavía no hay tareas" text="Creá la primera tarea del lanzamiento." action={{ label: 'Nueva tarea', onClick: () => setCreating(true) }} />
+      {tasks.length === 0 && view !== 'mias' ? (
+        <EmptyState title="Todavía no hay tareas" text={funnel ? `Creá la primera tarea de ${funnel.name}.` : 'Creá la primera tarea.'} action={{ label: 'Nueva tarea', onClick: () => setCreating(true) }} />
       ) : (
         <>
           {view === 'tablero' && <Board tasks={filtered} onOpen={openTask} onMove={moveTo} />}
           {view === 'lista' && <ByPhase tasks={filtered} phases={phases} onOpen={openTask} />}
-          {view === 'mias' && <Mine tasks={tasks} profileId={profile?.id ?? null} people={people} onOpen={openTask} />}
+          {view === 'mias' && <Mine tasks={allTasks} profileId={profile?.id ?? null} people={people} onOpen={openTask} funnelName={funnels.length > 1 ? funnelName : undefined} />}
           {view === 'resumen' && <Summary tasks={tasks} people={people} onPick={(name) => { setWho(name); setView('lista'); }} />}
         </>
       )}
@@ -156,7 +166,10 @@ export default function TasksPage() {
           key={open?.id ?? 'new'}
           task={creating ? null : open}
           people={people}
-          phases={phases}
+          // Al editar, las fases del funnel de la tarea; al crear, las del funnel elegido.
+          phases={!creating && open ? allPhases.filter((p) => p.funnel_id === open.funnel_id) : phases}
+          funnelId={funnelId === 'all' ? undefined : funnelId}
+          funnelName={funnels.length > 1 ? funnelName : undefined}
           defaults={creating && phase !== 'all' ? { phase } : undefined}
           onClose={() => { setCreating(false); openTask(null); }}
           onChanged={reload}
@@ -224,16 +237,17 @@ function Board({ tasks, onOpen, onMove }: { tasks: Task[]; onOpen: (id: string) 
   );
 }
 
-function TaskTable({ tasks, onOpen, showPhase }: { tasks: Task[]; onOpen: (id: string) => void; showPhase?: boolean }) {
+function TaskTable({ tasks, onOpen, showPhase, funnelName }: { tasks: Task[]; onOpen: (id: string) => void; showPhase?: boolean; funnelName?: (id: string) => string }) {
   return (
     <div className="glass table-wrap">
       <table className="table">
-        <thead><tr><th>Código</th><th>Tarea</th>{showPhase && <th>Fase</th>}<th>Responsable</th><th>Estado</th><th>Fecha límite</th></tr></thead>
+        <thead><tr><th>Código</th><th>Tarea</th>{funnelName && <th>Funnel</th>}{showPhase && <th>Fase</th>}<th>Responsable</th><th>Estado</th><th>Fecha límite</th></tr></thead>
         <tbody>
           {tasks.map((t) => (
             <tr key={t.id} className="table__row" onClick={() => onOpen(t.id)}>
               <td><span className="tcode">{t.id}</span></td>
-              <td><div className="cell-main">{t.title}</div>{t.quantity > 1 && <div className="cell-sub">×{t.quantity}</div>}</td>
+              <td><div className="cell-main">{t.title}</div>{(t.quantity > 1 || t.recurrence) && <div className="cell-sub">{[t.quantity > 1 ? `×${t.quantity}` : null, recurrenceLabel(t.recurrence)].filter(Boolean).join(' · ')}</div>}</td>
+              {funnelName && <td>{funnelName(t.funnel_id)}</td>}
               {showPhase && <td>{t.phase}</td>}
               <td>{t.responsible_name || <span className="muted">Sin asignar</span>}</td>
               <td><StatusPill status={t.status} /></td>
@@ -263,7 +277,7 @@ function ByPhase({ tasks, phases, onOpen }: { tasks: Task[]; phases: TaskPhase[]
   );
 }
 
-function Mine({ tasks, profileId, people, onOpen }: { tasks: Task[]; profileId: string | null; people: TaskPerson[]; onOpen: (id: string) => void }) {
+function Mine({ tasks, profileId, people, onOpen, funnelName }: { tasks: Task[]; profileId: string | null; people: TaskPerson[]; onOpen: (id: string) => void; funnelName?: (id: string) => string }) {
   const me = people.find((p) => p.profile_id === profileId);
   const mine = tasks.filter((t) => profileId && t.responsible_id === profileId);
   const byDue = (a: Task, b: Task) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999') || a.id.localeCompare(b.id);
@@ -275,12 +289,12 @@ function Mine({ tasks, profileId, people, onOpen }: { tasks: Task[]; profileId: 
     <div className="stack">
       <section>
         <h2 className="section-title section-title--sm">Pendientes · {open.length}{open.some((t) => isOverdue(t)) ? ` · ${open.filter((t) => isOverdue(t)).length} vencidas` : ''}</h2>
-        {open.length ? <TaskTable tasks={open} onOpen={onOpen} showPhase /> : <p className="muted">Todo hecho. 🎉</p>}
+        {open.length ? <TaskTable tasks={open} onOpen={onOpen} showPhase funnelName={funnelName} /> : <p className="muted">Todo hecho. 🎉</p>}
       </section>
       {done.length > 0 && (
         <section>
           <h2 className="section-title section-title--sm">Hechas · {done.length}</h2>
-          <TaskTable tasks={done} onOpen={onOpen} showPhase />
+          <TaskTable tasks={done} onOpen={onOpen} showPhase funnelName={funnelName} />
         </section>
       )}
     </div>

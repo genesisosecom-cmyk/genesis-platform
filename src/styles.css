@@ -1644,3 +1644,65 @@ html { scrollbar-gutter: stable; }
   .vsl__cmp .lt__sub { font-size: 10px; }
   .vsl__cmp .pill { font-size: 9px; padding: 2px 6px; }
 }
+
+/* =====================================================================
+   Funnels: selector, tablero del evergreen, contenido y reportes
+   ===================================================================== */
+.fswitch { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fswitch .seg__opt { white-space: nowrap; }
+.fswitch__cycle { max-width: 320px; }
+.admin__funnel .fswitch { justify-content: flex-end; }
+.fswitch--compact { margin-top: 12px; }
+.admin__funnel { margin-left: auto; min-width: 0; }
+.admin__funnel + .admin__sound { margin-left: 0; }
+@media (max-width: 900px) {
+  .admin__top { flex-wrap: wrap; }
+  .admin__funnel { order: 3; width: 100%; margin-left: 0; overflow-x: auto; }
+  .fswitch { flex-wrap: nowrap; }
+}
+
+/* Resumen: tarjetas por funnel */
+.fkpis { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.fcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 14px; }
+.fcard { display: flex; flex-direction: column; gap: 6px; padding: 20px 22px; text-align: left; color: var(--text); cursor: pointer; font: inherit; border-radius: var(--radius); transition: border-color 0.2s var(--ease), background 0.2s var(--ease); }
+.fcard:hover { border-color: var(--accent-line); background: var(--glass-hover); }
+.fcard__name { font-size: 17px; font-weight: 600; }
+.fcard__cash { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+
+/* Tablero por etapa del evergreen (reusa .tboard / .tcol / .tcard de Tareas) */
+.eboard { overflow-x: auto; padding-bottom: 8px; --tc: var(--accent); }
+.eboard .tcol { --tc: var(--accent); }
+.eboard .eboard__done { --tc: rgba(243, 236, 230, 0.35); opacity: 0.85; }
+.eboard .tcard { cursor: pointer; }
+.cell-clip { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.cell-clip .cell-main { display: block; overflow: hidden; text-overflow: ellipsis; }
+
+/* Reporte por fases */
+.rphase { margin: 8px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.rfield { min-height: 0; }
+.rview { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 22px; margin: 0; }
+.rview dt { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.rview dd { margin: 0; white-space: pre-wrap; }
+.callcard__report { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+@media (max-width: 700px) { .rview { grid-template-columns: 1fr; } }
+
+/* Contenido: grilla de la semana */
+.cweekhead { margin-bottom: 16px; }
+.cweek { display: grid; grid-template-columns: 120px repeat(7, minmax(150px, 1fr)); overflow-x: auto; border-radius: var(--radius); }
+.cweek__row { display: contents; }
+.cweek__corner, .cweek__day, .cweek__label, .cweek__cell { padding: 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); min-width: 0; }
+.cweek__day { font-size: 13px; font-weight: 600; position: sticky; top: 0; }
+.cweek__day.is-today { color: var(--accent); }
+.cweek__label { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.cweek__cell { display: flex; flex-direction: column; gap: 6px; min-height: 64px; }
+.cweek__add { align-self: flex-start; background: none; border: 1px dashed var(--line); color: var(--muted); border-radius: 8px; width: 26px; height: 22px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.cweek__cell:hover .cweek__add, .cweek__add:focus-visible { opacity: 1; }
+.cweek__add:hover { color: var(--accent); border-color: var(--accent-line); }
+.cpiece { display: flex; flex-direction: column; gap: 3px; text-align: left; font: inherit; color: var(--text); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-left: 3px solid var(--muted); border-radius: 10px; padding: 7px 9px; cursor: pointer; }
+.cpiece:hover { border-color: var(--accent-line); }
+.cpiece__meta { font-size: 11px; color: var(--muted); }
+.cpiece__title { font-size: 12.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cpiece--grabado, .cpiece--editado, .cpiece--programado { border-left-color: var(--accent); }
+.cpiece--publicado { border-left-color: #9fd8a8; }
+.cpiece--descartado { opacity: 0.45; text-decoration: line-through; }
+.cmetrics .field--num { width: 110px; }

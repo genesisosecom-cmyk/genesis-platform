@@ -2,10 +2,13 @@ import { useEffect, useState, type ComponentType, type SVGProps } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { LeadSoundToggle } from '../components/NewLeadSound';
+import { FunnelSwitcher, useFunnels } from '../funnels/FunnelContext';
+import type { Funnel } from '../lib/types';
 import {
   Bars,
   Book,
   Calendar,
+  Chart,
   Checklist,
   Coins,
   Doc,
@@ -14,6 +17,7 @@ import {
   Headset,
   Home,
   Inbox,
+  Layers,
   Logout,
   Menu,
   Phone,
@@ -33,6 +37,8 @@ interface Item {
   label: string;
   icon: Icon;
   end?: boolean;
+  /** Tipos de funnel en los que se ve (con «Todos» se ve siempre). Sin esto, siempre. */
+  kinds?: Funnel['kind'][];
 }
 
 /** Secciones de la barra lateral, agrupadas como en el diseño. */
@@ -50,9 +56,18 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       { to: '/admin/ventas', label: 'Ventas', icon: Trend },
       { to: '/admin/leads', label: 'Leads', icon: Target },
-      { to: '/admin/metricas', label: 'Métricas', icon: Bars },
+      // Métricas de landing, VSL, tests y ads: son del webinar.
+      { to: '/admin/metricas', label: 'Métricas', icon: Bars, kinds: ['webinar'] },
+      { to: '/admin/reportes-ventas', label: 'Reportes de ventas', icon: Chart },
       { to: '/admin/equipo', label: 'Equipo', icon: Team },
       { to: '/admin/crm', label: 'Config. CRM', icon: Sliders },
+    ],
+  },
+  {
+    title: 'Orgánico',
+    items: [
+      // Registro de contenido del funnel (no confundir con el contenido del campus).
+      { to: '/admin/piezas', label: 'Contenido', icon: Layers, kinds: ['evergreen', 'otro'] },
     ],
   },
   {
@@ -112,6 +127,8 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const current = useCurrent();
+  const { funnel } = useFunnels();
+  const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.kinds || !funnel || i.kinds.includes(funnel.kind)) })).filter((g) => g.items.length);
   const [open, setOpen] = useState(readOpen);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -145,7 +162,7 @@ export default function AdminLayout() {
         </Link>
 
         <nav className="rail__nav">
-          {GROUPS.map((g) => (
+          {groups.map((g) => (
             <div key={g.title} className="rail__group">
               <span className="rail__group-title">{g.title}</span>
               {g.items.map((i) => (
@@ -190,6 +207,7 @@ export default function AdminLayout() {
             <span className="eyebrow">{current?.group ?? 'Superadmin'}</span>
             <h1 className="admin__title">{current?.label ?? 'Panel de control'}</h1>
           </div>
+          <div className="admin__funnel"><FunnelSwitcher /></div>
           <LeadSoundToggle className="icon-btn admin__sound" />
         </header>
         <div className="admin__content fade-in" key={current?.to}>

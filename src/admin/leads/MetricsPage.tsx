@@ -3,6 +3,9 @@ import { useAsync } from '../../lib/useAsync';
 import { fmtDate, fmtDateTime } from '../../lib/format';
 import { State } from '../ui';
 import { useLaunchPicker } from './LeadsPage';
+import { Link } from 'react-router-dom';
+import { useFunnels } from '../../funnels/FunnelContext';
+import { EmptyState } from '../ui';
 import TeamMetricsPanel from '../../crm/TeamMetricsPanel';
 import { useLiveReload } from '../../lib/realtime';
 import { rangeDates, todayAR, type RangeKey } from '../../crm/teamMetrics';
@@ -48,6 +51,8 @@ const tabOf = (hash: string): TabKey => {
 
 export default function MetricsPage() {
   const { launches, launchId, picker } = useLaunchPicker();
+  const { funnelOf } = useFunnels();
+  const funnel = funnelOf(launchId);
   const [range, setRange] = useState<RangeKey>('todo');
   const [custom, setCustom] = useState({ from: '', to: todayAR() });
   const { from, to } = rangeDates(range, custom);
@@ -62,6 +67,10 @@ export default function MetricsPage() {
     setTab(k);
     window.history.replaceState(null, '', `#${k}`);
   };
+  // Landing, VSL, tests y ads son del webinar. Los otros funnels tienen su tablero en Contenido → Resultados.
+  if (funnel && funnel.kind !== 'webinar') {
+    return <EmptyState title={`Estas métricas son del funnel de webinars`} text={<>Para {funnel.name}, mirá <Link className="link" to="/admin/piezas?v=resultados">Contenido → Resultados</Link> (por pieza, por palabra y por subavatar) o el <Link className="link" to="/admin">Resumen</Link>.</>} />;
+  }
   return (
     <State loading={launches.loading} error={launches.error} empty={!launchId}>
       {launchId && (

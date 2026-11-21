@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useAsync } from '../lib/useAsync';
 import { Kpi, Modal, State } from '../admin/ui';
@@ -9,7 +9,6 @@ import {
   fetchAgents,
   fetchCalls,
   fetchCommissions,
-  fetchLaunches,
   fetchLaunchProgress,
   fetchLeadRow,
   fetchLeadRows,
@@ -23,40 +22,35 @@ import LeadCard, { type CardContext } from './LeadCard';
 import TeamMetricsPanel from './TeamMetricsPanel';
 import { changedId, useLiveReload, useRealtime, type Change } from '../lib/realtime';
 import { NewLeadModal, ResourcesModal } from './modals';
+import EvergreenLeads from './EvergreenLeads';
+import { FunnelSwitcher, useFunnels } from '../funnels/FunnelContext';
 import { CallCalendar, CommissionCards, LaunchGoal, realNumbers, ScopeToggle, Simulator } from './widgets';
 
 type Tab = 'leads' | 'resumen' | 'metricas' | 'calendario';
 
 export default function SdrPage() {
   const { rep, isSdr, isAdmin } = useAuth();
-  const launches = useAsync(fetchLaunches, []);
-  const [picked, setPicked] = useState<string | null>(null);
-  const launch = launches.data?.find((l) => l.id === picked) ?? launches.data?.find((l) => l.is_current) ?? launches.data?.[0] ?? null;
+  // Funnel y ciclo salen del selector (en el admin está arriba; en el panel del SDR, acá).
+  const { loading, error, launch, funnelOf } = useFunnels();
+  const launches = { loading, error };
+  const inAdmin = useLocation().pathname.startsWith('/admin');
+  const funnel = funnelOf(launch?.id);
 
   return (
     <div className="fade-in">
       <header className="page__header">
         <span className="eyebrow">Panel SDR{rep && isSdr ? ` · ${rep.name}` : ''}</span>
         <h1 className="page__title">Leads</h1>
+        {!inAdmin && (isSdr || isAdmin) && <FunnelSwitcher compact />}
       </header>
       {!isSdr && !isAdmin ? (
         <p className="muted">Tu usuario no está cargado como SDR.</p>
       ) : (
         <State loading={launches.loading} error={launches.error} empty={!launch}>
-          {launch && (
-            <SdrWorkspace
-              key={launch.id}
-              launch={launch}
-              me={isSdr ? rep!.id : null}
-              isAdmin={isAdmin}
-              picker={
-                launches.data!.length > 1 && (
-                  <select className="field field--select" value={launch.id} onChange={(e) => setPicked(e.target.value)}>
-                    {launches.data!.map((l) => <option key={l.id} value={l.id}>{l.name}{l.is_current ? ' (actual)' : ''}</option>)}
-                  </select>
-                )
-              }
-            />
+          {/* El evergreen tiene su propio tablero: palabras, etapas y ficha de calificación. */}
+          {launch && funnel?.kind === 'evergreen' && <EvergreenLeads key={launch.id} launchId={launch.id} funnel={funnel} me={isSdr ? rep!.id : null} />}
+          {launch && funnel?.kind !== 'evergreen' && (
+            <SdrWorkspace key={launch.id} launch={launch} me={isSdr ? rep!.id : null} isAdmin={isAdmin} picker={null} />
           )}
         </State>
       )}

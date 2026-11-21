@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { ProgressProvider } from './progress/ProgressContext';
 import { ContentProvider } from './content/ContentContext';
+import { FunnelProvider } from './funnels/FunnelContext';
 import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -13,7 +14,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <ContentProvider>
           <ProgressProvider>
-            <App />
+            <FunnelProvider>
+              <App />
+            </FunnelProvider>
           </ProgressProvider>
         </ContentProvider>
       </AuthProvider>

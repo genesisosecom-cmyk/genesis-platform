@@ -43,7 +43,7 @@ export default function LeadTable({ rows, linkTo, reps }: { rows: LeadRow[]; lin
                     {r.lead.full_name || '—'}
                     {r.lead.possible_duplicate && <Pill tone="warn">Posible duplicado</Pill>}
                   </div>
-                  <div className="cell-sub">{r.lead.email ?? (r.lead.phone ? `+${r.lead.phone}` : '—')}</div>
+                  <div className="cell-sub">{r.lead.email ?? (r.lead.phone ? `+${r.lead.phone}` : r.lead.instagram ? `@${r.lead.instagram}` : '—')}</div>
                 </td>
                 <td><WhatsAppButton phone={r.lead.phone} small /></td>
                 <td>
@@ -86,4 +86,4 @@ export default function LeadTable({ rows, linkTo, reps }: { rows: LeadRow[]; lin
 }
 
 /** Texto para el buscador. */
-export const searchText = (r: LeadRow) => `${r.lead.full_name} ${r.lead.email ?? ''} ${r.lead.phone ?? ''} ${r.source ?? ''}`.toLowerCase();
+export const searchText = (r: LeadRow) => `${r.lead.full_name} ${r.lead.email ?? ''} ${r.lead.phone ?? ''} ${r.lead.instagram ?? ''} ${r.entry_keyword ?? ''} ${r.source ?? ''}`.toLowerCase();

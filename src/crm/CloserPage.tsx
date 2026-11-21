@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useAsync } from '../lib/useAsync';
 import { fmtDateTime, fmtMoney } from '../lib/format';
@@ -7,7 +7,6 @@ import { Field, Kpi, Modal, State } from '../admin/ui';
 import {
   fetchCalls,
   fetchCommissions,
-  fetchLaunches,
   fetchLaunchProgress,
   fetchLeadRows,
   fetchSalePayments,
@@ -27,12 +26,12 @@ import { useLiveReload } from '../lib/realtime';
 import { WithTip } from '../components/InfoTip';
 import { CALL_TIPS } from './tips';
 import { useLaunchPicker } from '../admin/leads/LeadsPage';
+import { FunnelSwitcher, useFunnels } from '../funnels/FunnelContext';
+import type { Launch } from '../lib/types';
 
 type Tab = 'calendario' | 'seguimientos' | 'revisar' | 'resumen' | 'metricas';
 
-async function load() {
-  const launches = await fetchLaunches();
-  const launch = launches.find((l) => l.is_current) ?? launches[0] ?? null;
+async function load(launch: Launch | null) {
   const [calls, reps, settings, progress] = await Promise.all([
     fetchCalls({}),
     fetchSalesReps(),
@@ -47,7 +46,10 @@ export default function CloserPage() {
   const { rep, isCloser, isAdmin } = useAuth();
   const { callId } = useParams();
   const navigate = useNavigate();
-  const { data, loading, error, reload } = useAsync(load, []);
+  // El closer ve las llamadas de todos los funnels; la meta y la carga manual usan el ciclo del selector.
+  const { launch } = useFunnels();
+  const inAdmin = useLocation().pathname.startsWith('/admin');
+  const { data, loading, error, reload } = useAsync(() => load(launch), [launch?.id]);
   useLiveReload(['sales_calls', 'payments', 'lead_launches', 'sales_reps'], reload, { delayMs: 1200 });
   const me = isCloser ? rep!.id : null;
   const [tab, setTab] = useState<Tab>('calendario');
@@ -77,6 +79,7 @@ export default function CloserPage() {
       <header className="page__header">
         <span className="eyebrow">Panel closer{rep && isCloser ? ` · ${rep.name}` : ''}</span>
         <h1 className="page__title">Calls</h1>
+        {!inAdmin && (isCloser || isAdmin) && <FunnelSwitcher compact />}
       </header>
       {!isCloser && !isAdmin ? (
         <p className="muted">Tu usuario no está cargado como closer.</p>
